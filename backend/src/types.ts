@@ -65,6 +65,12 @@ export interface JobRecord {
   contentType?: string;
   etag?: string;
   uploadedAt?: string;
+  // Set by Step Functions stub pipeline
+  executionArn?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  errorCode?: string;
+  errorMessage?: string;
   error?: JobError;
   artifacts?: Record<string, unknown>;
 }

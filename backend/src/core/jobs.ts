@@ -1,6 +1,7 @@
 import { PutCommand, GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { S3Client } from "@aws-sdk/client-s3";
+import { SFNClient, StartExecutionCommand } from "@aws-sdk/client-sfn";
 import { ulid } from "ulid";
 import type { Config } from "../config.js";
 import type {
@@ -59,12 +60,18 @@ export interface JobStatusResult {
   createdAt: string;
   updatedAt: string;
   artifacts?: Record<string, unknown> | null;
+  executionArn?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
   error?: { code: string; message: string } | null;
 }
 
 export interface JobsDeps {
   dynamo: DynamoDBDocumentClient;
   s3: S3Client;
+  stepFunctions: SFNClient;
   config: Config;
 }
 
@@ -146,7 +153,7 @@ export async function finalizeJob(
   jobId: string,
   body: FinalizeJobInput
 ): Promise<FinalizeJobResult> {
-  const { dynamo, s3, config } = deps;
+  const { dynamo, s3, stepFunctions, config } = deps;
 
   const getRes = await dynamo.send(
     new GetCommand({
@@ -217,12 +224,49 @@ export async function finalizeJob(
     })
   );
 
-  return {
+  const result: FinalizeJobResult = {
     ok: true,
     jobId,
     status: "UPLOADED",
     stage: "VALIDATE",
   };
+
+  const stateMachineArn = config.SFN_STATE_MACHINE_ARN;
+  if (stateMachineArn && stateMachineArn.length > 0) {
+    const reportKey = `derived/${jobId}/report.json`;
+    const input = {
+      jobId,
+      rawBucket: job.rawBucket,
+      rawKey: job.rawKey,
+      derivedBucket: config.DERIVED_BUCKET,
+      reportKey,
+    };
+
+    try {
+      await stepFunctions.send(
+        new StartExecutionCommand({
+          stateMachineArn,
+          name: jobId,
+          input: JSON.stringify(input),
+        })
+      );
+    } catch (error) {
+      const err = error as { name?: string; message?: string };
+      if (err.name !== "ExecutionAlreadyExists") {
+        throw new ApiError(
+          500,
+          ErrorCodes.INTERNAL_ERROR,
+          "Failed to start stub pipeline execution",
+          {
+            name: err.name,
+            message: err.message,
+          }
+        );
+      }
+    }
+  }
+
+  return result;
 }
 
 export async function getJobStatus(
@@ -252,6 +296,11 @@ export async function getJobStatus(
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     artifacts: job.artifacts ?? null,
+    executionArn: job.executionArn ?? null,
+    startedAt: job.startedAt ?? null,
+    finishedAt: job.finishedAt ?? null,
+    errorCode: job.errorCode ?? null,
+    errorMessage: job.errorMessage ?? null,
     error: job.error ?? null,
   };
 }

@@ -1,0 +1,231 @@
+{
+  "Comment": "PitchMirror 2.0 stub pipeline - validates job stage, writes stub report, and marks job succeeded or failed.",
+  "StartAt": "MarkRunning",
+  "States": {
+    "MarkRunning": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "pitchmirror2-jobs",
+        "Key": {
+          "jobId": {
+            "S.$": "$.jobId"
+          }
+        },
+        "UpdateExpression": "SET #status = :running, #executionArn = :executionArn, #startedAt = :startedAt, #updatedAt = :updatedAt REMOVE #errorCode, #errorMessage",
+        "ConditionExpression": "#stage = :expectedStage",
+        "ExpressionAttributeNames": {
+          "#status": "status",
+          "#stage": "stage",
+          "#executionArn": "executionArn",
+          "#startedAt": "startedAt",
+          "#updatedAt": "updatedAt",
+          "#errorCode": "errorCode",
+          "#errorMessage": "errorMessage"
+        },
+        "ExpressionAttributeValues": {
+          ":running": {
+            "S": "RUNNING"
+          },
+          ":expectedStage": {
+            "S": "VALIDATE"
+          },
+          ":executionArn": {
+            "S.$": "$$.Execution.Id"
+          },
+          ":startedAt": {
+            "S.$": "$$.Execution.StartTime"
+          },
+          ":updatedAt": {
+            "S.$": "$$.State.EnteredTime"
+          }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "ConditionalCheckFailedException",
+            "DynamoDB.ConditionalCheckFailedException"
+          ],
+          "Next": "NoOpSuccess"
+        },
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "Wait2s"
+    },
+    "Wait2s": {
+      "Type": "Wait",
+      "Seconds": 2,
+      "Next": "BuildReport"
+    },
+    "BuildReport": {
+      "Type": "Pass",
+      "ResultPath": "$.report",
+      "Parameters": {
+        "overall": {
+          "score": 75,
+          "summary": "Stub report (pipeline wired)"
+        },
+        "top_fixes": [
+          {
+            "issue": "Stub implementation",
+            "why": "Demonstrates pipeline wiring end-to-end",
+            "drill": "Record a short pitch and review this stub report",
+            "expected_gain": "Familiarity with PitchMirror 2.0 flow"
+          }
+        ],
+        "voice": {
+          "note": "Voice analysis not yet implemented (stub)."
+        },
+        "presence": {
+          "note": "Presence analysis not yet implemented (stub)."
+        },
+        "content": {
+          "note": "Content analysis not yet implemented (stub)."
+        },
+        "artifacts": {
+          "raw": {
+            "bucket.$": "$.rawBucket",
+            "key.$": "$.rawKey"
+          },
+          "report": {
+            "bucket.$": "$.derivedBucket",
+            "key.$": "$.reportKey"
+          }
+        },
+        "note": "Stub report (pipeline wired). Replace with real Nova output once the full pipeline is implemented."
+      },
+      "Next": "PutStubReport"
+    },
+    "PutStubReport": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:s3:putObject",
+      "Parameters": {
+        "Bucket.$": "$.derivedBucket",
+        "Key.$": "$.reportKey",
+        "ContentType": "application/json",
+        "Body.$": "States.JsonToString($.report)"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "MarkSucceeded"
+    },
+    "MarkSucceeded": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "pitchmirror2-jobs",
+        "Key": {
+          "jobId": {
+            "S.$": "$.jobId"
+          }
+        },
+        "UpdateExpression": "SET #status = :succeeded, #stage = :finalize, #finishedAt = :finishedAt, #reportKey = :reportKey, #updatedAt = :updatedAt REMOVE #errorCode, #errorMessage",
+        "ConditionExpression": "#stage = :expectedStage",
+        "ExpressionAttributeNames": {
+          "#status": "status",
+          "#stage": "stage",
+          "#finishedAt": "finishedAt",
+          "#reportKey": "reportKey",
+          "#updatedAt": "updatedAt",
+          "#errorCode": "errorCode",
+          "#errorMessage": "errorMessage"
+        },
+        "ExpressionAttributeValues": {
+          ":succeeded": {
+            "S": "SUCCEEDED"
+          },
+          ":finalize": {
+            "S": "FINALIZE"
+          },
+          ":expectedStage": {
+            "S": "VALIDATE"
+          },
+          ":finishedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          ":reportKey": {
+            "S.$": "$.reportKey"
+          },
+          ":updatedAt": {
+            "S.$": "$$.State.EnteredTime"
+          }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "ConditionalCheckFailedException",
+            "DynamoDB.ConditionalCheckFailedException"
+          ],
+          "Next": "NoOpSuccess"
+        },
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "MarkFailed"
+        }
+      ],
+      "End": true
+    },
+    "MarkFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "pitchmirror2-jobs",
+        "Key": {
+          "jobId": {
+            "S.$": "$.jobId"
+          }
+        },
+        "UpdateExpression": "SET #status = :failed, #errorCode = :errorCode, #errorMessage = :errorMessage, #finishedAt = :finishedAt, #updatedAt = :updatedAt",
+        "ExpressionAttributeNames": {
+          "#status": "status",
+          "#errorCode": "errorCode",
+          "#errorMessage": "errorMessage",
+          "#finishedAt": "finishedAt",
+          "#updatedAt": "updatedAt"
+        },
+        "ExpressionAttributeValues": {
+          ":failed": {
+            "S": "FAILED"
+          },
+          ":errorCode": {
+            "S.$": "$.failure.Error"
+          },
+          ":errorMessage": {
+            "S.$": "$.failure.Cause"
+          },
+          ":finishedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          ":updatedAt": {
+            "S.$": "$$.State.EnteredTime"
+          }
+        }
+      },
+      "End": true
+    },
+    "NoOpSuccess": {
+      "Type": "Pass",
+      "Comment": "ConditionalCheckFailedException indicates the job has already advanced past this stage. Treat as successful no-op.",
+      "End": true
+    }
+  }
+}
+

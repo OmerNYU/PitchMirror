@@ -1,7 +1,11 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { config } from "../config.js";
-import { createS3Client, createDynamoDocClient } from "../aws/clients.js";
+import {
+  createS3Client,
+  createDynamoDocClient,
+  createStepFunctionsClient,
+} from "../aws/clients.js";
 import {
   createJob,
   finalizeJob,
@@ -36,6 +40,7 @@ function buildDeps(): JobsDeps {
   return {
     dynamo: createDynamoDocClient(config),
     s3: createS3Client(config),
+    stepFunctions: createStepFunctionsClient(config),
     config,
   };
 }

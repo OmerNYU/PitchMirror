@@ -11,8 +11,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]),
   PORT: z.coerce.number().int().min(1).max(65535),
   ALLOWED_ORIGINS: z.string().default("*"),
-  // Optional: when set, backend will StartExecution on finalize
-  SFN_STATE_MACHINE_ARN: z.string().min(1).optional(),
+  PITCHMIRROR_SFN_ARN: z.string().min(1),
 });
 
 export type Config = z.infer<typeof envSchema>;

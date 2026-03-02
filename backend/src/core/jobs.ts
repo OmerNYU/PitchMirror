@@ -1,7 +1,7 @@
 import { PutCommand, GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { S3Client } from "@aws-sdk/client-s3";
-import { SFNClient, StartExecutionCommand } from "@aws-sdk/client-sfn";
+import type { SFNClient } from "@aws-sdk/client-sfn";
 import { ulid } from "ulid";
 import type { Config } from "../config.js";
 import type {
@@ -16,6 +16,7 @@ import { TIER_MAX_BYTES, CONTENT_TYPE_EXT } from "../types.js";
 import { ApiError, ErrorCodes } from "../errors.js";
 import { createPresignedPutUrl } from "../aws/presign.js";
 import { headObject } from "../aws/s3-head.js";
+import { startStubPipeline } from "../services/pipeline.js";
 import { nowIso, ttlSeconds } from "../util/time.js";
 
 export interface CreateJobInput {
@@ -49,6 +50,11 @@ export interface FinalizeJobResult {
   jobId: string;
   status: Status;
   stage: Stage;
+  pipelineStart: "started" | "already_running" | "failed";
+  requestId: string;
+  executionArn?: string;
+  errorCode?: string;
+  errorMessage?: string;
 }
 
 export interface JobStatusResult {
@@ -151,7 +157,8 @@ export async function createJob(
 export async function finalizeJob(
   deps: JobsDeps,
   jobId: string,
-  body: FinalizeJobInput
+  body: FinalizeJobInput,
+  requestId: string
 ): Promise<FinalizeJobResult> {
   const { dynamo, s3, stepFunctions, config } = deps;
 
@@ -224,46 +231,92 @@ export async function finalizeJob(
     })
   );
 
-  const result: FinalizeJobResult = {
-    ok: true,
-    jobId,
-    status: "UPLOADED",
-    stage: "VALIDATE",
-  };
-
-  const stateMachineArn = config.SFN_STATE_MACHINE_ARN;
-  if (stateMachineArn && stateMachineArn.length > 0) {
-    const reportKey = `derived/${jobId}/report.json`;
-    const input = {
+  const reportKey = `derived/${jobId}/report.json`;
+  const pipelineResult = await startStubPipeline(
+    stepFunctions,
+    config.PITCHMIRROR_SFN_ARN,
+    {
       jobId,
       rawBucket: job.rawBucket,
       rawKey: job.rawKey,
       derivedBucket: config.DERIVED_BUCKET,
       reportKey,
-    };
+      mode: job.mode,
+      tier: job.tier,
+    }
+  );
 
+  console.log(
+    JSON.stringify({
+      level: "info",
+      requestId,
+      jobId,
+      pipelineStart: pipelineResult.pipelineStart,
+      ...(pipelineResult.pipelineStart === "started" &&
+        pipelineResult.executionArn && {
+          executionArn: pipelineResult.executionArn,
+        }),
+    })
+  );
+
+  let status: Status = "UPLOADED";
+  let stage: Stage = "VALIDATE";
+
+  if (pipelineResult.pipelineStart === "failed") {
+    const failedUpdatedAt = nowIso();
     try {
-      await stepFunctions.send(
-        new StartExecutionCommand({
-          stateMachineArn,
-          name: jobId,
-          input: JSON.stringify(input),
+      await dynamo.send(
+        new UpdateCommand({
+          TableName: config.JOBS_TABLE,
+          Key: { jobId },
+          UpdateExpression:
+            "SET #status = :failed, #errorCode = :errorCode, #errorMessage = :errorMessage, #updatedAt = :updatedAt",
+          ConditionExpression:
+            "#stage = :expectedStage AND #status <> :succeeded",
+          ExpressionAttributeNames: {
+            "#status": "status",
+            "#stage": "stage",
+            "#errorCode": "errorCode",
+            "#errorMessage": "errorMessage",
+            "#updatedAt": "updatedAt",
+          },
+          ExpressionAttributeValues: {
+            ":failed": "FAILED",
+            ":expectedStage": "VALIDATE",
+            ":succeeded": "SUCCEEDED",
+            ":errorCode": pipelineResult.errorCode,
+            ":errorMessage": pipelineResult.errorMessage,
+            ":updatedAt": failedUpdatedAt,
+          },
         })
       );
-    } catch (error) {
-      const err = error as { name?: string; message?: string };
-      if (err.name !== "ExecutionAlreadyExists") {
-        throw new ApiError(
-          500,
-          ErrorCodes.INTERNAL_ERROR,
-          "Failed to start stub pipeline execution",
-          {
-            name: err.name,
-            message: err.message,
-          }
-        );
+      status = "FAILED";
+    } catch (condErr) {
+      const e = condErr as { name?: string };
+      if (
+        e?.name !== "ConditionalCheckFailedException" &&
+        e?.name !== "DynamoDB.ConditionalCheckFailedException"
+      ) {
+        throw condErr;
       }
     }
+  }
+
+  const result: FinalizeJobResult = {
+    ok: true,
+    jobId,
+    status,
+    stage,
+    pipelineStart: pipelineResult.pipelineStart,
+    requestId,
+  };
+
+  if (pipelineResult.pipelineStart === "started" && pipelineResult.executionArn) {
+    result.executionArn = pipelineResult.executionArn;
+  }
+  if (pipelineResult.pipelineStart === "failed") {
+    result.errorCode = pipelineResult.errorCode;
+    result.errorMessage = pipelineResult.errorMessage;
   }
 
   return result;

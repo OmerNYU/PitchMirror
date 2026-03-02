@@ -90,9 +90,12 @@ export async function registerJobsRoutes(app: FastifyInstance): Promise<void> {
           bodyResult.error.flatten()
         );
       }
-      const result = await finalizeJob(deps, paramsResult.data.jobId, {
-        rawKey: bodyResult.data.rawKey,
-      } as FinalizeJobInput);
+      const result = await finalizeJob(
+        deps,
+        paramsResult.data.jobId,
+        { rawKey: bodyResult.data.rawKey } as FinalizeJobInput,
+        request.id ?? "unknown"
+      );
       return reply.status(200).send(result);
     }
   );

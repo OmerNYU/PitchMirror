@@ -65,7 +65,7 @@ curl -s -X POST http://localhost:8080/jobs/<JOB_ID>/finalize \
   -d '{"rawKey":"raw/<JOB_ID>/input.mp4"}'
 ```
 
-Response: `{"ok":true,"jobId":"...","status":"UPLOADED","stage":"VALIDATE"}`
+Response: `{"ok":true,"jobId":"...","status":"UPLOADED","stage":"VALIDATE","pipelineStart":"started"|"already_running"|"failed","requestId":"..."}`. On pipeline start failure, `status` may be `"FAILED"` with `errorCode` and `errorMessage`.
 
 ### Get job status
 
@@ -84,4 +84,4 @@ Returns `jobId`, `status`, `stage`, `mode`, `tier`, `createdAt`, `updatedAt`, an
 
 ## Env vars
 
-See `.env.example`. Required: `AWS_REGION`, `RAW_BUCKET`, `DERIVED_BUCKET`, `JOBS_TABLE`, `PRESIGN_EXPIRES_SECONDS`, `RAW_TTL_DAYS`, `NODE_ENV`, `PORT`. Optional: `ALLOWED_ORIGINS` (default `*`).
+See `.env.example`. Required: `AWS_REGION`, `RAW_BUCKET`, `DERIVED_BUCKET`, `JOBS_TABLE`, `PITCHMIRROR_SFN_ARN`, `PRESIGN_EXPIRES_SECONDS`, `RAW_TTL_DAYS`, `NODE_ENV`, `PORT`. Optional: `ALLOWED_ORIGINS` (default `*`).

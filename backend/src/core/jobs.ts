@@ -18,6 +18,7 @@ import { createPresignedPutUrl } from "../aws/presign.js";
 import { headObject } from "../aws/s3-head.js";
 import { startStubPipeline } from "../services/pipeline.js";
 import { nowIso, ttlSeconds } from "../util/time.js";
+import { getReport, type Report } from "../services/report.js";
 
 export interface CreateJobInput {
   mode: Mode;
@@ -357,3 +358,33 @@ export async function getJobStatus(
     error: job.error ?? null,
   };
 }
+
+export async function getReportForJob(
+  deps: JobsDeps,
+  jobId: string
+): Promise<Report> {
+  const { dynamo, s3, config } = deps;
+
+  const getRes = await dynamo.send(
+    new GetCommand({
+      TableName: config.JOBS_TABLE,
+      Key: { jobId },
+    })
+  );
+
+  const job = getRes.Item as JobRecord | undefined;
+  if (!job) {
+    throw new ApiError(404, ErrorCodes.NOT_FOUND, "Job not found");
+  }
+
+  if (job.status !== "SUCCEEDED" || !job.reportKey) {
+    throw new ApiError(
+      409,
+      ErrorCodes.REPORT_NOT_READY,
+      "Report not ready; job must be SUCCEEDED"
+    );
+  }
+
+  return getReport(s3, config.DERIVED_BUCKET, job.reportKey);
+}
+

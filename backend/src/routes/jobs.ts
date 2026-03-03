@@ -10,6 +10,7 @@ import {
   createJob,
   finalizeJob,
   getJobStatus,
+  getReportForJob,
   type JobsDeps,
   type CreateJobInput,
   type FinalizeJobInput,
@@ -114,6 +115,27 @@ export async function registerJobsRoutes(app: FastifyInstance): Promise<void> {
       }
       const result = await getJobStatus(deps, paramsResult.data.jobId);
       return reply.status(200).send(result);
+    }
+  );
+
+  app.get(
+    "/jobs/:jobId/report",
+    async (
+      request: FastifyRequest<{ Params: { jobId: string } }>,
+      reply: FastifyReply
+    ) => {
+      const paramsResult = JobIdParamSchema.safeParse(request.params);
+      if (!paramsResult.success) {
+        throw new ApiError(
+          400,
+          ErrorCodes.INVALID_REQUEST,
+          "Invalid jobId",
+          paramsResult.error.flatten()
+        );
+      }
+
+      const report = await getReportForJob(deps, paramsResult.data.jobId);
+      return reply.status(200).type("application/json").send(report);
     }
   );
 

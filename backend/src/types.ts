@@ -66,6 +66,7 @@ export interface JobRecord {
   etag?: string;
   uploadedAt?: string;
   // Set by Step Functions stub pipeline
+  reportKey?: string;
   executionArn?: string;
   startedAt?: string;
   finishedAt?: string;

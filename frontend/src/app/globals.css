@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+}
+
+.card {
+  @apply rounded-2xl border border-slate-800 bg-slate-900/60 shadow-lg shadow-black/40;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.btn-primary {
+  @apply btn bg-brand hover:bg-brand-light text-white;
+}
+
+.btn-secondary {
+  @apply btn bg-slate-800 hover:bg-slate-700 text-slate-100;
+}
+
+.input {
+  @apply w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand;
+}
+
+.label {
+  @apply block text-xs font-medium text-slate-300;
+}
+
+.badge {
+  @apply inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-200;
+}
+

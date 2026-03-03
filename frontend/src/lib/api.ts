@@ -56,7 +56,25 @@ export interface JobStatusResponse {
   error?: { code: string; message: string } | null;
 }
 
+export interface ReportSection {
+  score?: number;
+  highlights?: string[];
+  improvements?: string[];
+  notes?: string;
+  // Allow Nova to add additional fields without breaking the client
+  [key: string]: unknown;
+}
+
+export interface ReportPracticePlanItem {
+  session: number;
+  minutes: number;
+  focus: string;
+  steps: string[];
+}
+
 export interface Report {
+  schema_version?: string;
+  generatedAt?: string;
   overall: {
     score: number;
     summary: string;
@@ -67,10 +85,16 @@ export interface Report {
     drill: string;
     expected_gain: string;
   }[];
-  voice: Record<string, unknown>;
-  presence: Record<string, unknown>;
-  content: Record<string, unknown>;
-  artifacts?: Record<string, unknown>;
+  voice: ReportSection;
+  presence: ReportSection;
+  content: ReportSection;
+  practice_plan: ReportPracticePlanItem[];
+  limitations: string[];
+  artifacts: {
+    raw: { bucket: string; key: string };
+    report: { bucket: string; key: string };
+    [key: string]: unknown;
+  };
   note?: string;
 }
 

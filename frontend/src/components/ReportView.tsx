@@ -32,11 +32,20 @@ function sectionHighlights(
     };
   }
 
+  // Next, prefer a notes field if present (SectionSchema alignment)
+  const notesValue = (section as any).notes;
+  if (typeof notesValue === "string" && notesValue.trim().length > 0) {
+    return {
+      highlights: [notesValue],
+      improvements: [],
+    };
+  }
+
   // Fallback: pick a couple of known/textual fields just for display
   const entries = Object.entries(section).filter(
     ([key, value]) =>
       typeof value === "string" &&
-      !["highlights", "improvements"].includes(key.toLowerCase())
+      !["highlights", "improvements", "notes"].includes(key.toLowerCase())
   );
 
   const texts = entries.map(([, value]) => String(value)).slice(0, 4);
@@ -121,6 +130,59 @@ export function ReportView({ report, artifactsFromJob }: ReportViewProps) {
           highlights={content.highlights}
           improvements={content.improvements}
         />
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <div className="card p-4 text-xs text-slate-200 md:col-span-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            Practice plan
+          </p>
+          {report.practice_plan.length ? (
+            <ul className="mt-2 space-y-2">
+              {report.practice_plan.map((session, idx) => (
+                <li
+                  key={idx}
+                  className="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2"
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    Session {session.session} · {session.minutes} min
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-slate-50">
+                    Focus: {session.focus}
+                  </p>
+                  {session.steps.length > 0 && (
+                    <ul className="mt-1 list-disc space-y-1 pl-4 text-[11px] text-slate-200">
+                      {session.steps.map((step, stepIdx) => (
+                        <li key={stepIdx}>{step}</li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-xs text-slate-500">
+              No practice plan provided.
+            </p>
+          )}
+        </div>
+
+        <div className="card p-4 text-xs text-slate-200">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            Limitations
+          </p>
+          {report.limitations.length ? (
+            <ul className="mt-2 list-disc space-y-1 pl-4">
+              {report.limitations.map((limitation, idx) => (
+                <li key={idx}>{limitation}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-xs text-slate-500">
+              No limitations were recorded.
+            </p>
+          )}
+        </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">

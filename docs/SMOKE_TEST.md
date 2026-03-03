@@ -136,19 +136,29 @@ curl -s "http://localhost:8080/jobs/$JOB_ID/report" | tee /tmp/pitchmirror-repor
 
 Expected JSON shape (from the stub report schema):
 
+- `schema_version` (optional, string)
+- `generatedAt` (optional, ISO timestamp)
 - `overall`:
   - `score` (number)
   - `summary` (string)
-- `top_fixes`: array of objects, each with:
+- `top_fixes`: array of **at least 3** objects, each with:
   - `issue`
   - `why`
   - `drill`
   - `expected_gain`
-- `voice`: object (may contain a `note` in the stub)
-- `presence`: object
-- `content`: object
+- `voice`: object (section; may contain `highlights` / `improvements` / `notes`)
+- `presence`: object (section)
+- `content`: object (section)
+- `practice_plan`: array with at least one item:
+  - `session` (number)
+  - `minutes` (number)
+  - `focus` (string)
+  - `steps` (string array)
+- `limitations`: array of strings (at least 1)
 - `artifacts`: object (contains raw and report locations)
 - Optional `note` string
+
+Validate that the JSON includes the canonical keys: `overall`, `top_fixes`, `voice`, `presence`, `content`, `practice_plan`, `limitations`, `artifacts`, `note`. Optional: `schema_version`, `generatedAt`.
 
 If this JSON validates and looks coherent, the end-to-end pipeline is wired.
 

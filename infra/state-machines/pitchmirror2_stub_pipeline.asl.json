@@ -68,6 +68,8 @@
       "Type": "Pass",
       "ResultPath": "$.report",
       "Parameters": {
+        "schema_version": "2.0",
+        "generatedAt.$": "$$.State.EnteredTime",
         "overall": {
           "score": 75,
           "summary": "Stub report (pipeline wired)"
@@ -78,17 +80,45 @@
             "why": "Demonstrates pipeline wiring end-to-end",
             "drill": "Record a short pitch and review this stub report",
             "expected_gain": "Familiarity with PitchMirror 2.0 flow"
+          },
+          {
+            "issue": "Validate end-to-end flow",
+            "why": "Ensures the async pipeline from upload to report is healthy",
+            "drill": "Run through the full PitchMirror flow with a short sample video",
+            "expected_gain": "Confidence that infrastructure and UX are wired correctly"
+          },
+          {
+            "issue": "Practice using feedback",
+            "why": "Getting comfortable reading and acting on the report is key",
+            "drill": "Pick one fix and practice it for 10 minutes",
+            "expected_gain": "Faster iteration when real Nova feedback is enabled"
           }
         ],
         "voice": {
-          "note": "Voice analysis not yet implemented (stub)."
+          "notes": "Voice analysis not yet implemented (stub)."
         },
         "presence": {
-          "note": "Presence analysis not yet implemented (stub)."
+          "notes": "Presence analysis not yet implemented (stub)."
         },
         "content": {
-          "note": "Content analysis not yet implemented (stub)."
+          "notes": "Content analysis not yet implemented (stub)."
         },
+        "practice_plan": [
+          {
+            "session": 1,
+            "minutes": 10,
+            "focus": "Walk through the stub report",
+            "steps": [
+              "Record a short pitch",
+              "Upload and finalize the job in PitchMirror",
+              "Review the stub report sections and top fixes"
+            ]
+          }
+        ],
+        "limitations": [
+          "Stub report – Nova-powered analysis is not yet wired in",
+          "Practice plan and limitations are placeholders for schema validation"
+        ],
         "artifacts": {
           "raw": {
             "bucket.$": "$.rawBucket",

@@ -10,16 +10,45 @@ const ReportFixSchema = z.object({
   expected_gain: z.string(),
 });
 
+const ReportPracticePlanItemSchema = z.object({
+  session: z.number(),
+  minutes: z.number(),
+  focus: z.string(),
+  steps: z.array(z.string()),
+});
+
+const ReportSectionSchema = z
+  .object({
+    score: z.number().optional(),
+    highlights: z.array(z.string()).optional(),
+    improvements: z.array(z.string()).optional(),
+    notes: z.string().optional(),
+  })
+  .passthrough();
+
 export const ReportSchema = z.object({
+  schema_version: z.string().optional(),
+  generatedAt: z.string().optional(),
   overall: z.object({
     score: z.number(),
     summary: z.string(),
   }),
-  top_fixes: z.array(ReportFixSchema),
-  voice: z.record(z.unknown()),
-  presence: z.record(z.unknown()),
-  content: z.record(z.unknown()),
-  artifacts: z.record(z.unknown()).optional(),
+  top_fixes: z.array(ReportFixSchema).min(3),
+  voice: ReportSectionSchema,
+  presence: ReportSectionSchema,
+  content: ReportSectionSchema,
+  practice_plan: z.array(ReportPracticePlanItemSchema).min(1),
+  limitations: z.array(z.string()).min(1),
+  artifacts: z.object({
+    raw: z.object({
+      bucket: z.string(),
+      key: z.string(),
+    }),
+    report: z.object({
+      bucket: z.string(),
+      key: z.string(),
+    }),
+  }),
   note: z.string().optional(),
 });
 

@@ -1,69 +1,113 @@
 import type { JobStatusResponse } from "../lib/api";
 
+export type ProgressPhase =
+  | "idle"
+  | "creating"
+  | "uploading"
+  | "finalizing"
+  | "polling"
+  | "reportLoading"
+  | "report";
+
 interface ProgressViewProps {
+  phase: ProgressPhase;
   jobId?: string | null;
   status?: JobStatusResponse | null;
   isPolling: boolean;
+  requestId?: string | null;
 }
 
-function statusLabel(status?: JobStatusResponse | null): string {
-  if (!status) return "Idle";
+const STEPS = [
+  { key: "uploading", label: "Uploading" },
+  { key: "processing", label: "Processing" },
+  { key: "ready", label: "Report ready" },
+] as const;
 
-  if (status.status === "FAILED") {
-    return "Job failed";
-  }
-
-  if (status.status === "SUCCEEDED" || status.stage === "FINALIZE") {
-    return "Report ready";
-  }
-
-  if (
-    status.status === "UPLOADED" ||
-    status.stage === "VALIDATE" ||
-    status.stage === "UPLOAD"
-  ) {
-    return "Validating…";
-  }
-
-  if (status.status === "RUNNING") {
-    return "Analyzing…";
-  }
-
-  return "Working…";
+function stepIndex(phase: ProgressPhase, status?: JobStatusResponse | null): number {
+  if (status?.status === "FAILED") return 1;
+  if (phase === "report") return 2;
+  if (phase === "polling" || phase === "reportLoading") return 1;
+  if (phase === "creating" || phase === "uploading" || phase === "finalizing") return 0;
+  return -1;
 }
 
-export function ProgressView({ jobId, status, isPolling }: ProgressViewProps) {
-  const label = statusLabel(status);
+export function ProgressView({
+  phase,
+  jobId,
+  status,
+  isPolling,
+  requestId,
+}: ProgressViewProps) {
+  const currentStep = stepIndex(phase, status);
+  const failed = status?.status === "FAILED";
+
+  if (phase === "idle" && !failed) {
+    return null;
+  }
+
+  if (failed) {
+    return (
+      <div className="mt-4 rounded-xl border border-red-500/40 bg-red-950/40 px-4 py-4 text-sm">
+        <p className="font-medium text-red-100">
+          We couldn&apos;t analyze that video. Please try a shorter clip.
+        </p>
+        {requestId && (
+          <p className="mt-2 text-xs text-red-200/80">
+            Request ID: <span className="font-mono">{requestId}</span>
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm">
-      <div className="flex items-center gap-3">
-        {isPolling ? (
-          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400" />
-        ) : (
-          <span className="h-2.5 w-2.5 rounded-full bg-slate-600" />
-        )}
-        <div>
-          <p className="font-medium text-slate-100">{label}</p>
-          {status && (
-            <p className="text-xs text-slate-400">
-              Status:{" "}
-              <span className="font-mono">
-                {status.status} / {status.stage}
+    <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-4">
+      <div className="flex items-center justify-between gap-4">
+        {STEPS.map((step, idx) => {
+          const stepNum = idx + 1;
+          const isActive = currentStep === idx;
+          const isComplete = currentStep > idx;
+          return (
+            <div
+              key={step.key}
+              className="flex flex-1 items-center gap-2 last:flex-none"
+            >
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
+                  isComplete
+                    ? "bg-emerald-500/20 text-emerald-400"
+                    : isActive
+                      ? "bg-brand text-white"
+                      : "bg-slate-800 text-slate-500"
+                }`}
+              >
+                {isComplete ? "✓" : stepNum}
+              </div>
+              <span
+                className={`text-sm ${
+                  isActive ? "font-medium text-slate-100" : "text-slate-400"
+                }`}
+              >
+                {step.label}
               </span>
-            </p>
-          )}
-        </div>
+              {idx < STEPS.length - 1 && (
+                <div
+                  className={`ml-1 h-0.5 flex-1 rounded ${
+                    isComplete ? "bg-emerald-500/40" : "bg-slate-700"
+                  }`}
+                  aria-hidden
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
-      {jobId && (
-        <div className="ml-4 hidden text-xs text-slate-500 sm:block">
-          <span className="mr-1 text-slate-400">Job:</span>
-          <span className="font-mono bg-slate-900 px-2 py-0.5 rounded-full">
-            {jobId}
-          </span>
-        </div>
+      {isPolling && currentStep === 1 && (
+        <p className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+          Analyzing your video…
+        </p>
       )}
     </div>
   );
 }
-

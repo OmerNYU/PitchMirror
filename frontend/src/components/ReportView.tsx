@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Report } from "../lib/api";
 
 interface ReportViewProps {
@@ -57,6 +58,7 @@ function sectionHighlights(
 }
 
 export function ReportView({ report, artifactsFromJob }: ReportViewProps) {
+  const [technicalOpen, setTechnicalOpen] = useState(false);
   if (!report) return null;
 
   const voice = sectionHighlights(report.voice as Record<string, unknown>);
@@ -186,29 +188,6 @@ export function ReportView({ report, artifactsFromJob }: ReportViewProps) {
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
-        <div className="card p-4 text-xs text-slate-200">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-            Artifacts
-          </p>
-          <div className="mt-2 space-y-1">
-            {report.artifacts && (
-              <pre className="overflow-x-auto rounded-lg bg-slate-950/60 p-2 font-mono text-[11px] text-slate-200">
-                {JSON.stringify(report.artifacts, null, 2)}
-              </pre>
-            )}
-            {artifactsFromJob && (
-              <pre className="overflow-x-auto rounded-lg bg-slate-950/60 p-2 font-mono text-[11px] text-slate-200">
-                {JSON.stringify(artifactsFromJob, null, 2)}
-              </pre>
-            )}
-            {!report.artifacts && !artifactsFromJob && (
-              <p className="text-slate-400">
-                Artifacts will appear here when available.
-              </p>
-            )}
-          </div>
-        </div>
-
         <div className="card p-4 text-xs text-slate-200 md:col-span-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
             Notes
@@ -216,6 +195,38 @@ export function ReportView({ report, artifactsFromJob }: ReportViewProps) {
           <p className="mt-2 whitespace-pre-wrap text-slate-200">
             {report.note ?? "No additional notes."}
           </p>
+        </div>
+
+        <div className="card p-4 text-xs text-slate-200">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between text-left"
+            onClick={() => setTechnicalOpen((o) => !o)}
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Technical details
+            </p>
+            <span className="text-slate-500">{technicalOpen ? "−" : "+"}</span>
+          </button>
+          {technicalOpen && (
+            <div className="mt-2 space-y-1">
+              {report.artifacts && (
+                <pre className="overflow-x-auto rounded-lg bg-slate-950/60 p-2 font-mono text-[11px] text-slate-200">
+                  {JSON.stringify(report.artifacts, null, 2)}
+                </pre>
+              )}
+              {artifactsFromJob && (
+                <pre className="overflow-x-auto rounded-lg bg-slate-950/60 p-2 font-mono text-[11px] text-slate-200">
+                  {JSON.stringify(artifactsFromJob, null, 2)}
+                </pre>
+              )}
+              {!report.artifacts && !artifactsFromJob && (
+                <p className="text-slate-400">
+                  No technical data to display.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </section>
     </div>

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PitchMirror 2.0",
-  description: "AI-powered presentation coaching for judges demo",
+  title: "PitchMirror",
+  description: "Get clear, actionable coaching feedback on your pitch video.",
 };
 
 export default function RootLayout({

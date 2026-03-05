@@ -11,12 +11,12 @@ export interface CardProps {
 export function Card({ tone = "default", className, children }: CardProps) {
   const toneClasses =
     tone === "default"
-      ? "bg-[color:var(--pm-surface)]/95 border-[color:var(--pm-border-subtle)]"
-      : "bg-[color:var(--pm-surface-soft)]/90 border-[color:var(--pm-border-subtle)]/60";
+      ? "bg-[color:var(--pm-surface)] border-[color:var(--pm-border-subtle)]"
+      : "bg-[color:var(--pm-surface-soft)] border-[color:var(--pm-border-subtle)]/70";
 
   const classes = [
-    "rounded-3xl border shadow-[0_24px_80px_rgba(0,0,0,0.75)] backdrop-blur-xl",
-    "ring-1 ring-black/40",
+    "rounded-3xl border shadow-[0_18px_45px_rgba(15,23,42,0.16)] backdrop-blur-xl",
+    "ring-1 ring-[color:var(--pm-border-subtle)]/40",
     toneClasses,
     className ?? "",
   ]

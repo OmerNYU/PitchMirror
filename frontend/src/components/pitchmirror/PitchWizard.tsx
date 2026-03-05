@@ -150,6 +150,19 @@ export function PitchWizard({
     [],
   );
 
+  const modeHint = useMemo(() => {
+    if (wizard.mode === "voice") {
+      return "Upload a video — we’ll analyze how you sound from its audio track.";
+    }
+    if (wizard.mode === "presence") {
+      return "We’ll focus on your posture, eye contact, and presence on camera.";
+    }
+    if (wizard.mode === "full") {
+      return "We’ll look at voice, presence, and content together.";
+    }
+    return null;
+  }, [wizard.mode]);
+
   const stepCopy = useMemo(
     () => [
       {
@@ -213,7 +226,7 @@ export function PitchWizard({
 
                   <label
                     className={[
-                      "mt-1 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-6 text-center text-sm transition-colors",
+                      "mt-1 flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-8 text-center text-sm transition-colors",
                       dragActive
                         ? "border-[color:var(--pm-accent)] bg-[color:var(--pm-accent-soft)]/40"
                         : wizard.file
@@ -262,6 +275,11 @@ export function PitchWizard({
                       ))}
                     </dl>
                   </label>
+                  {modeHint && (
+                    <p className="text-[11px] text-[color:var(--pm-text-muted)]">
+                      {modeHint}
+                    </p>
+                  )}
                 </div>
               </div>
             </Card>
@@ -276,8 +294,8 @@ export function PitchWizard({
                       Choose what you want feedback on
                     </h2>
                     <p className="mt-1.5 text-xs text-[color:var(--pm-text-muted)] md:text-sm">
-                      These modes all use the same underlying model. You&apos;re
-                      just telling us where to focus.
+                      Pick where you want the coaching to focus. You can always
+                      try a different mode on your next recording.
                     </p>
                   </div>
                 </div>
@@ -286,7 +304,7 @@ export function PitchWizard({
                   <FocusCard
                     label="Full coaching"
                     subtitle="Voice, presence, and content together"
-                    technical="Audio + video"
+                    technical="Video + audio"
                     selected={wizard.mode === "full"}
                     onSelect={() => update("mode", "full")}
                     disabled={!canEdit}
@@ -294,7 +312,7 @@ export function PitchWizard({
                   <FocusCard
                     label="Voice coaching"
                     subtitle="Pacing, tone, filler words"
-                    technical="Audio-focused analysis"
+                    technical="We’ll analyze your voice from the video"
                     selected={wizard.mode === "voice"}
                     onSelect={() => update("mode", "voice")}
                     disabled={!canEdit}
@@ -302,7 +320,7 @@ export function PitchWizard({
                   <FocusCard
                     label="Presence coaching"
                     subtitle="Posture, eye contact, expressiveness"
-                    technical="Video-focused (no audio)"
+                    technical="We’ll focus on how you show up on camera"
                     selected={wizard.mode === "presence"}
                     onSelect={() => update("mode", "presence")}
                     disabled={!canEdit}
@@ -441,7 +459,7 @@ export function PitchWizard({
                     </p>
                   </div>
                   {hasReport && (
-                    <div className="hidden items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-300 sm:inline-flex">
+                    <div className="hidden items-center gap-2 rounded-full bg-[color:var(--pm-accent-soft)] px-3 py-1 text-[11px] font-medium text-[color:var(--pm-accent)] sm:inline-flex">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Report ready
                     </div>
@@ -506,6 +524,27 @@ export function PitchWizard({
               </div>
             </Card>
           )}
+
+          <div className="flex items-center justify-between pt-1 text-xs">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={safePrevStep}
+              disabled={currentStep === 1 || isBusy}
+            >
+              Back
+            </Button>
+            {currentStep < 4 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={safeNextStep}
+                disabled={isBusy}
+              >
+                {currentStep === 3 ? "Continue to analyze" : "Next step"}
+              </Button>
+            )}
+          </div>
         </motion.div>
       </AnimatePresence>
 

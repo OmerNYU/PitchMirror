@@ -9,8 +9,8 @@ export interface StudioLayoutProps {
 export function StudioLayout({ wizard, sidebar }: StudioLayoutProps) {
   return (
     <main className="min-h-screen px-4 py-8 md:px-8 lg:px-12 lg:py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-        <header className="flex flex-col gap-3 border-b border-[color:var(--pm-border-subtle)]/60 pb-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
+        <header className="flex flex-col gap-3 border-b border-[color:var(--pm-border-subtle)]/60 pb-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--pm-text-muted)]">
               PitchMirror Studio
@@ -19,18 +19,25 @@ export function StudioLayout({ wizard, sidebar }: StudioLayoutProps) {
               Guided coaching for your next pitch.
             </h1>
           </div>
-          <Card tone="soft" className="max-w-xs px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
-              Designed for leaders
-            </p>
-            <p className="mt-1.5 text-xs text-[color:var(--pm-text-muted)]">
-              Upload a short pitch and we&apos;ll return a concise coaching
-              summary in under a minute.
-            </p>
-          </Card>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-[color:var(--pm-text-muted)]">
+            <Card
+              tone="soft"
+              className="flex flex-wrap items-center gap-2 border-none bg-transparent px-0 py-0 shadow-none ring-0"
+            >
+              <span className="inline-flex items-center rounded-full border border-[color:var(--pm-border-subtle)]/80 bg-[color:var(--pm-surface-soft)] px-3 py-1">
+                ~30–60s analysis
+              </span>
+              <span className="inline-flex items-center rounded-full border border-[color:var(--pm-border-subtle)]/60 bg-[color:var(--pm-surface-soft)] px-3 py-1">
+                Deleted after processing
+              </span>
+              <span className="inline-flex items-center rounded-full border border-[color:var(--pm-border-subtle)]/60 bg-[color:var(--pm-surface-soft)] px-3 py-1">
+                Up to 5 min / 500MB
+              </span>
+            </Card>
+          </div>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
           <section aria-label="Upload and analysis wizard" className="space-y-6">
             {wizard}
           </section>

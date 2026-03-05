@@ -28,7 +28,7 @@ export function Stepper({ steps, current }: StepperProps) {
                 className={[
                   "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
                   isComplete
-                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/60"
+                    ? "bg-[color:var(--pm-accent-soft)] text-[color:var(--pm-accent)] border-[color:var(--pm-accent)]/70"
                     : isActive
                       ? "bg-[color:var(--pm-accent)] text-slate-950 border-[color:var(--pm-accent)]"
                       : "bg-[color:var(--pm-surface-soft)] text-[color:var(--pm-text-muted)] border-[color:var(--pm-border-subtle)]",

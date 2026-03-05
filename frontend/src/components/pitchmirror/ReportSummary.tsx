@@ -26,40 +26,46 @@ export function ReportSummary({ report }: ReportSummaryProps) {
 
         <Card tone="soft" className="px-4 py-4 md:px-5 md:py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
-            What we look at
+            What we look at &amp; how we handle your video
           </p>
-          <ul className="mt-2 space-y-1.5 text-xs text-[color:var(--pm-text-muted)]">
-            <li>
-              <span className="font-medium text-[color:var(--pm-text-main)]">
-                Voice
-              </span>{" "}
-              – pacing, tone, pauses, and filler words.
-            </li>
-            <li>
-              <span className="font-medium text-[color:var(--pm-text-main)]">
-                Presence
-              </span>{" "}
-              – posture, eye contact, and energy on camera.
-            </li>
-            <li>
-              <span className="font-medium text-[color:var(--pm-text-main)]">
-                Content
-              </span>{" "}
-              – clarity of message and narrative flow.
-            </li>
-          </ul>
-        </Card>
-
-        <Card tone="soft" className="px-4 py-4 md:px-5 md:py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
-            Privacy &amp; retention
-          </p>
-          <ul className="mt-2 space-y-1.5 text-xs text-[color:var(--pm-text-muted)]">
-            <li>Max length: 5 minutes. Max size: 500 MB.</li>
-            <li>Supported formats: MP4, MOV, WebM.</li>
-            <li>Analysis usually completes within 30–60 seconds.</li>
-            <li>Videos are deleted automatically after processing.</li>
-          </ul>
+          <div className="mt-2 space-y-3 text-xs text-[color:var(--pm-text-muted)]">
+            <div>
+              <p className="font-medium text-[color:var(--pm-text-main)]">
+                Coaching focus
+              </p>
+              <ul className="mt-1.5 space-y-1.5">
+                <li>
+                  <span className="font-medium text-[color:var(--pm-text-main)]">
+                    Voice
+                  </span>{" "}
+                  – pacing, tone, pauses, and filler words.
+                </li>
+                <li>
+                  <span className="font-medium text-[color:var(--pm-text-main)]">
+                    Presence
+                  </span>{" "}
+                  – posture, eye contact, and energy on camera.
+                </li>
+                <li>
+                  <span className="font-medium text-[color:var(--pm-text-main)]">
+                    Content
+                  </span>{" "}
+                  – clarity of message and narrative flow.
+                </li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-[color:var(--pm-text-main)]">
+                Constraints &amp; retention
+              </p>
+              <ul className="mt-1.5 space-y-1.5">
+                <li>Max length: 5 minutes. Max size: 500 MB.</li>
+                <li>Supported formats: MP4, MOV, WebM.</li>
+                <li>Analysis usually completes within 30–60 seconds.</li>
+                <li>Videos are deleted automatically after processing.</li>
+              </ul>
+            </div>
+          </div>
         </Card>
       </>
     );
@@ -83,7 +89,7 @@ export function ReportSummary({ report }: ReportSummaryProps) {
         {typeof report.overall?.score === "number" && (
           <p className="mt-3 text-xs text-[color:var(--pm-text-muted)]">
             Overall score:{" "}
-            <span className="font-semibold text-emerald-300">
+            <span className="font-semibold text-[color:var(--pm-accent)]">
               {Math.round(report.overall.score)}
             </span>
           </p>
@@ -102,7 +108,10 @@ export function ReportSummary({ report }: ReportSummaryProps) {
         {hasTopFixes ? (
           <ul className="mt-2 space-y-2 text-xs text-[color:var(--pm-text-muted)]">
             {topFixes.map((fix, index) => (
-              <li key={index} className="rounded-2xl bg-[color:var(--pm-surface-soft)]/80 px-3 py-2">
+              <li
+                key={index}
+                className="rounded-2xl bg-[color:var(--pm-surface-soft)] px-3 py-2"
+              >
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--pm-text-muted)]">
                   Focus {index + 1}
                 </p>
@@ -115,7 +124,7 @@ export function ReportSummary({ report }: ReportSummaryProps) {
                   </p>
                 )}
                 {fix.drill && (
-                  <p className="mt-1 text-[11px] text-emerald-300">
+                  <p className="mt-1 text-[11px] text-[color:var(--pm-accent)]">
                     Suggested drill: {fix.drill}
                   </p>
                 )}

@@ -14,11 +14,11 @@ import {
 import {
   type WizardFormState,
   type SupportedContentType,
-  WizardForm,
 } from "../components/WizardForm";
-import { type ProgressPhase, ProgressView } from "../components/ProgressView";
-import { ReportView } from "../components/ReportView";
-import { ErrorView } from "../components/ErrorView";
+import { type ProgressPhase } from "../components/ProgressView";
+import { StudioLayout } from "../components/ui/StudioLayout";
+import { PitchWizard } from "../components/pitchmirror/PitchWizard";
+import { ReportSummary } from "../components/pitchmirror/ReportSummary";
 
 type Phase = ProgressPhase;
 
@@ -37,6 +37,7 @@ export default function Page() {
   const [report, setReport] = useState<Report | null>(null);
   const [requestId, setRequestId] = useState<string | null>(null);
   const [pipelineStart, setPipelineStart] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState<number>(1);
 
   const [apiError, setApiError] = useState<ApiErrorShape | null>(null);
   const [pipelineErrorCode, setPipelineErrorCode] = useState<string | null>(
@@ -49,8 +50,6 @@ export default function Page() {
 
   const [resumeJobId, setResumeJobId] = useState("");
   const [resumeBusy, setResumeBusy] = useState(false);
-  const [resumeExpanded, setResumeExpanded] = useState(false);
-  const [advancedExpanded, setAdvancedExpanded] = useState(false);
 
   const isBusy = useMemo(
     () =>
@@ -98,6 +97,7 @@ export default function Page() {
             if (cancelled) return;
             setReport(r);
             setPhase("report");
+            setCurrentStep(4);
           } catch (err) {
             if (cancelled) return;
             setApiError(
@@ -180,6 +180,7 @@ export default function Page() {
     const contentType = wizard.file.type as SupportedContentType;
 
     try {
+      setCurrentStep(4);
       setPhase("creating");
       const created = await createJob({
         mode: wizard.mode,
@@ -254,6 +255,7 @@ export default function Page() {
         const r = await getReportWithRetry(trimmed, 3);
         setReport(r);
         setPhase("report");
+        setCurrentStep(4);
         return;
       }
 
@@ -272,112 +274,38 @@ export default function Page() {
   }
 
   return (
-    <main className="min-h-screen px-4 py-8 md:px-8">
-      <div className="mx-auto w-full max-w-2xl space-y-6">
-        <WizardForm
-          state={wizard}
-          onChange={setWizard}
+    <StudioLayout
+      wizard={
+        <PitchWizard
+          wizard={wizard}
+          onWizardChange={setWizard}
+          currentStep={currentStep}
+          setCurrentStep={setCurrentStep}
+          phase={phase}
+          isBusy={isBusy}
+          formError={formError}
           onAnalyze={handleAnalyze}
-          busy={isBusy}
-          errorText={formError}
+          resumeJobId={resumeJobId}
+          setResumeJobId={setResumeJobId}
+          resumeBusy={resumeBusy}
+          onResume={handleResume}
+          apiError={apiError}
+          pipelineErrorCode={pipelineErrorCode}
+          pipelineErrorMessage={pipelineErrorMessage}
+          status={status}
+          jobId={jobId}
+          isPolling={isPolling}
+          requestId={requestId}
+          report={report}
         />
-
-        <div>
-          <ProgressView
-            phase={phase}
-            jobId={jobId}
-            status={status}
-            isPolling={isPolling}
-            requestId={requestId}
-          />
-          <ErrorView
-            error={apiError}
-            pipelineErrorCode={pipelineErrorCode}
-            pipelineErrorMessage={pipelineErrorMessage}
-          />
-        </div>
-
-        <div className="mt-4">
-          <button
-            type="button"
-            className="text-sm text-slate-400 hover:text-slate-300 underline"
-            onClick={() => setResumeExpanded((e) => !e)}
-          >
-            {resumeExpanded ? "Hide" : "Resume an earlier analysis"}
-          </button>
-          {resumeExpanded && (
-            <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <p className="text-[11px] text-slate-400">
-                Enter your job ID to continue or view the report.
-              </p>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <input
-                  type="text"
-                  className="input text-xs flex-1"
-                  placeholder="e.g. 01HV…"
-                  value={resumeJobId}
-                  onChange={(e) => setResumeJobId(e.target.value)}
-                  disabled={isBusy}
-                />
-                <button
-                  type="button"
-                  className="btn-secondary shrink-0"
-                  onClick={handleResume}
-                  disabled={isBusy || resumeBusy}
-                >
-                  {resumeBusy ? "Checking…" : "Resume by job ID"}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-4">
-          <button
-            type="button"
-            className="flex w-full items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-900/80"
-            onClick={() => setAdvancedExpanded((e) => !e)}
-          >
-            <span>Advanced</span>
-            <span className="text-slate-500">{advancedExpanded ? "−" : "+"}</span>
-          </button>
-          {advancedExpanded && (
-            <div className="mt-1 rounded-xl border border-t-0 border-slate-800 bg-slate-900/40 px-4 py-3 font-mono text-xs text-slate-400">
-              <dl className="space-y-1.5">
-                {jobId && (
-                  <>
-                    <dt className="text-slate-500">jobId</dt>
-                    <dd className="text-slate-300">{jobId}</dd>
-                  </>
-                )}
-                {pipelineStart != null && (
-                  <>
-                    <dt className="text-slate-500">pipelineStart</dt>
-                    <dd className="text-slate-300">{pipelineStart}</dd>
-                  </>
-                )}
-                {requestId && (
-                  <>
-                    <dt className="text-slate-500">requestId</dt>
-                    <dd className="text-slate-300">{requestId}</dd>
-                  </>
-                )}
-                {status && (
-                  <>
-                    <dt className="text-slate-500">status</dt>
-                    <dd className="text-slate-300">{status.status}</dd>
-                    <dt className="text-slate-500">stage</dt>
-                    <dd className="text-slate-300">{status.stage}</dd>
-                  </>
-                )}
-              </dl>
-            </div>
-          )}
-        </div>
-
-        <ReportView report={report} artifactsFromJob={status?.artifacts ?? null} />
-      </div>
-    </main>
+      }
+      sidebar={
+        <ReportSummary
+          report={report}
+          artifactsFromJob={status?.artifacts ?? null}
+        />
+      }
+    />
   );
 }
 

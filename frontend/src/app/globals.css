@@ -2,8 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --pm-bg: #030712;
+  --pm-surface: rgba(15, 23, 42, 0.92);
+  --pm-surface-soft: rgba(15, 23, 42, 0.78);
+  --pm-border-subtle: rgba(148, 163, 184, 0.32);
+  --pm-text-main: #e5e7eb;
+  --pm-text-muted: #94a3b8;
+  --pm-accent: #f3b26b;
+  --pm-accent-soft: rgba(243, 178, 107, 0.16);
+}
+
 body {
-  @apply bg-slate-950 text-slate-100 antialiased;
+  @apply antialiased;
+  color: var(--pm-text-main);
+  background:
+    radial-gradient(circle at 0% 0%, #0b1120 0, transparent 55%),
+    radial-gradient(circle at 100% 0%, #020617 0, transparent 55%),
+    radial-gradient(circle at 50% 120%, #020617 0, #000000 60%);
+  background-color: var(--pm-bg);
+  position: relative;
+  min-height: 100vh;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.22;
+    mix-blend-mode: soft-light;
+    background-image:
+      radial-gradient(circle at 0% 0%, rgba(248, 250, 252, 0.08) 0, transparent 50%),
+      radial-gradient(circle at 100% 0%, rgba(15, 23, 42, 0.85) 0, transparent 55%),
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='noStitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+    background-size:
+      140% 140%,
+      160% 160%,
+      280px 280px;
+  }
 }
 
 .card {

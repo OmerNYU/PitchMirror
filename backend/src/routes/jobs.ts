@@ -11,9 +11,11 @@ import {
   finalizeJob,
   getJobStatus,
   getReportForJob,
+  uploadTranscriptForJob,
   type JobsDeps,
   type CreateJobInput,
   type FinalizeJobInput,
+  type UploadTranscriptInput,
 } from "../core/jobs.js";
 import { ApiError, ErrorCodes } from "../errors.js";
 import type { Mode, Tier, AllowedContentType } from "../types.js";
@@ -35,6 +37,14 @@ const FinalizeJobSchema = z.object({
 
 const JobIdParamSchema = z.object({
   jobId: z.string().min(1),
+});
+
+const UploadTranscriptSchema = z.object({
+  transcriptText: z
+    .string()
+    .min(1, "transcriptText required")
+    .max(1_000_000),
+  subtitlesVtt: z.string().max(1_000_000).optional(),
 });
 
 function buildDeps(): JobsDeps {
@@ -114,6 +124,43 @@ export async function registerJobsRoutes(app: FastifyInstance): Promise<void> {
         );
       }
       const result = await getJobStatus(deps, paramsResult.data.jobId);
+      return reply.status(200).send(result);
+    }
+  );
+
+  app.post(
+    "/jobs/:jobId/transcript",
+    async (
+      request: FastifyRequest<{ Params: { jobId: string } }>,
+      reply: FastifyReply
+    ) => {
+      const paramsResult = JobIdParamSchema.safeParse(request.params);
+      if (!paramsResult.success) {
+        throw new ApiError(
+          400,
+          ErrorCodes.INVALID_REQUEST,
+          "Invalid jobId",
+          paramsResult.error.flatten()
+        );
+      }
+      const bodyResult = UploadTranscriptSchema.safeParse(request.body);
+      if (!bodyResult.success) {
+        throw new ApiError(
+          400,
+          ErrorCodes.INVALID_REQUEST,
+          bodyResult.error.message,
+          bodyResult.error.flatten()
+        );
+      }
+      const input: UploadTranscriptInput = {
+        transcriptText: bodyResult.data.transcriptText,
+        subtitlesVtt: bodyResult.data.subtitlesVtt,
+      };
+      const result = await uploadTranscriptForJob(
+        deps,
+        paramsResult.data.jobId,
+        input
+      );
       return reply.status(200).send(result);
     }
   );

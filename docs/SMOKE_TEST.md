@@ -102,7 +102,44 @@ For the happy path, you should see `pipelineStart: "started"`.
 
 ---
 
-### 4) Poll job status – `GET /jobs/:jobId`
+### 4) Upload transcript (BYOT) – optional
+
+You can attach your own transcript (and optional WebVTT subtitles) to an existing job. Use the same `JOB_ID` from step 1.
+
+**Transcript only:**
+
+```bash
+curl -s -X POST "http://localhost:8080/jobs/$JOB_ID/transcript" \
+  -H "Content-Type: application/json" \
+  -d "$(jq -n --arg t 'Sample transcript text.' '{transcriptText:$t}')" | tee /tmp/pitchmirror-transcript.json
+```
+
+**Transcript + WebVTT** (if you have files):
+
+```bash
+# Put transcript in /tmp/transcript.txt and VTT in /tmp/subtitles.vtt, then:
+curl -s -X POST "http://localhost:8080/jobs/$JOB_ID/transcript" \
+  -H "Content-Type: application/json" \
+  -d "$(jq -n --rawfile t /tmp/transcript.txt --rawfile v /tmp/subtitles.vtt '{transcriptText:$t, subtitlesVtt:$v}')" | tee /tmp/pitchmirror-transcript.json
+```
+
+Expected response:
+
+- `ok: true`
+- `jobId` equals `$JOB_ID`
+- `transcriptKey`: `derived/<JOB_ID>/transcript.json`
+- `subtitlesKey` (only if you sent `subtitlesVtt`): `derived/<JOB_ID>/subtitles.vtt`
+
+S3 (DERIVED_BUCKET) will contain:
+
+- `derived/<JOB_ID>/transcript.json` (application/json; schema with `source: "user"`, `text`, etc.)
+- `derived/<JOB_ID>/subtitles.vtt` (text/vtt) when provided
+
+A later `GET /jobs/$JOB_ID` will include `transcriptKey` and `subtitlesKey` when set.
+
+---
+
+### 5) Poll job status – `GET /jobs/:jobId`
 
 The stub state machine usually completes in a few seconds.
 
@@ -125,10 +162,11 @@ Expected final status for a successful demo:
 - `executionArn` present
 - `startedAt` and `finishedAt` set
 - `reportKey` set under the `artifacts` or top-level job fields, depending on pipeline version
+- `transcriptKey` and `subtitlesKey` present if you uploaded a transcript in step 4
 
 ---
 
-### 5) Fetch report – `GET /jobs/:jobId/report`
+### 6) Fetch report – `GET /jobs/:jobId/report`
 
 ```bash
 curl -s "http://localhost:8080/jobs/$JOB_ID/report" | tee /tmp/pitchmirror-report.json

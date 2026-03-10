@@ -19,6 +19,10 @@ import { headObject } from "../aws/s3-head.js";
 import { startStubPipeline } from "../services/pipeline.js";
 import { nowIso, ttlSeconds } from "../util/time.js";
 import { getReport, type Report } from "../services/report.js";
+import {
+  writeTranscriptArtifacts,
+  buildTranscriptPayload,
+} from "../services/transcript.js";
 
 export interface CreateJobInput {
   mode: Mode;
@@ -73,6 +77,20 @@ export interface JobStatusResult {
   errorCode?: string | null;
   errorMessage?: string | null;
   error?: { code: string; message: string } | null;
+  transcriptKey?: string | null;
+  subtitlesKey?: string | null;
+}
+
+export interface UploadTranscriptInput {
+  transcriptText: string;
+  subtitlesVtt?: string;
+}
+
+export interface UploadTranscriptResult {
+  ok: boolean;
+  jobId: string;
+  transcriptKey: string;
+  subtitlesKey?: string;
 }
 
 export interface JobsDeps {
@@ -356,7 +374,97 @@ export async function getJobStatus(
     errorCode: job.errorCode ?? null,
     errorMessage: job.errorMessage ?? null,
     error: job.error ?? null,
+    transcriptKey: job.transcriptKey ?? null,
+    subtitlesKey: job.subtitlesKey ?? null,
   };
+}
+
+export async function uploadTranscriptForJob(
+  deps: JobsDeps,
+  jobId: string,
+  body: UploadTranscriptInput
+): Promise<UploadTranscriptResult> {
+  const { dynamo, s3, config } = deps;
+
+  const getRes = await dynamo.send(
+    new GetCommand({
+      TableName: config.JOBS_TABLE,
+      Key: { jobId },
+    })
+  );
+
+  const job = getRes.Item as JobRecord | undefined;
+  if (!job) {
+    throw new ApiError(404, ErrorCodes.NOT_FOUND, "Job not found");
+  }
+
+  const transcriptKey = `derived/${jobId}/transcript.json`;
+  const hasSubtitles =
+    body.subtitlesVtt != null && body.subtitlesVtt.trim() !== "";
+  const subtitlesKey = hasSubtitles
+    ? `derived/${jobId}/subtitles.vtt`
+    : undefined;
+
+  const payload = buildTranscriptPayload(body.transcriptText);
+  await writeTranscriptArtifacts(
+    s3,
+    config.DERIVED_BUCKET,
+    transcriptKey,
+    payload,
+    subtitlesKey,
+    body.subtitlesVtt
+  );
+
+  const updatedAt = nowIso();
+
+  if (subtitlesKey != null) {
+    await dynamo.send(
+      new UpdateCommand({
+        TableName: config.JOBS_TABLE,
+        Key: { jobId },
+        UpdateExpression:
+          "SET #transcriptKey = :transcriptKey, #updatedAt = :updatedAt, #subtitlesKey = :subtitlesKey",
+        ExpressionAttributeNames: {
+          "#transcriptKey": "transcriptKey",
+          "#updatedAt": "updatedAt",
+          "#subtitlesKey": "subtitlesKey",
+        },
+        ExpressionAttributeValues: {
+          ":transcriptKey": transcriptKey,
+          ":updatedAt": updatedAt,
+          ":subtitlesKey": subtitlesKey,
+        },
+      })
+    );
+  } else {
+    await dynamo.send(
+      new UpdateCommand({
+        TableName: config.JOBS_TABLE,
+        Key: { jobId },
+        UpdateExpression:
+          "SET #transcriptKey = :transcriptKey, #updatedAt = :updatedAt REMOVE #subtitlesKey",
+        ExpressionAttributeNames: {
+          "#transcriptKey": "transcriptKey",
+          "#updatedAt": "updatedAt",
+          "#subtitlesKey": "subtitlesKey",
+        },
+        ExpressionAttributeValues: {
+          ":transcriptKey": transcriptKey,
+          ":updatedAt": updatedAt,
+        },
+      })
+    );
+  }
+
+  const result: UploadTranscriptResult = {
+    ok: true,
+    jobId,
+    transcriptKey,
+  };
+  if (subtitlesKey != null) {
+    result.subtitlesKey = subtitlesKey;
+  }
+  return result;
 }
 
 export async function getReportForJob(

@@ -68,6 +68,9 @@ export interface JobRecord {
   // Set by Step Functions stub pipeline
   reportKey?: string;
   executionArn?: string;
+  // BYOT: user-uploaded transcript and optional WebVTT
+  transcriptKey?: string;
+  subtitlesKey?: string;
   startedAt?: string;
   finishedAt?: string;
   errorCode?: string;

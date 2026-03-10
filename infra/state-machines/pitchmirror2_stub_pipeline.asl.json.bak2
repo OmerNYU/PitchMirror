@@ -70,6 +70,7 @@
       "ResultPath": "$.report",
       "Parameters": {
         "schema_version": "2.0",
+        "generatedAt.$": "$$.State.EnteredTime",
         "overall": {
           "score": 75,
           "summary": "Stub report (pipeline wired)"
@@ -84,12 +85,12 @@
           {
             "issue": "Validate end-to-end flow",
             "why": "Ensures the async pipeline from upload to report is healthy",
-            "drill": "Run the full PitchMirror flow with a short sample video",
+            "drill": "Run through the full PitchMirror flow with a short sample video",
             "expected_gain": "Confidence that infrastructure and UX are wired correctly"
           },
           {
             "issue": "Practice using feedback",
-            "why": "Comfort reading and acting on the report is key",
+            "why": "Getting comfortable reading and acting on the report is key",
             "drill": "Pick one fix and practice it for 10 minutes",
             "expected_gain": "Faster iteration when real Nova feedback is enabled"
           }
@@ -129,8 +130,7 @@
             "key.$": "$.reportKey"
           }
         },
-        "note": "Stub report (pipeline wired). Replace with real Nova output once the full pipeline is implemented.",
-        "generatedAt.$": "$$.State.EnteredTime"
+        "note": "Stub report (pipeline wired). Replace with real Nova output once the full pipeline is implemented."
       },
       "Next": "PutStubReport"
     },

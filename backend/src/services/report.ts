@@ -104,6 +104,21 @@ export async function getReport(
     let parsedJson: unknown;
     try {
       parsedJson = JSON.parse(jsonString);
+
+      // Step Functions aws-sdk:s3:putObject stores Body as a JSON string (wrapped in quotes).
+      // If we received a JSON-string-of-JSON, parse it a second time.
+      if (typeof parsedJson === "string") {
+        try {
+          parsedJson = JSON.parse(parsedJson);
+        } catch (err) {
+          throw new ApiError(
+            502,
+            ErrorCodes.S3_ACCESS_ERROR,
+            "Invalid report JSON (double-encoded)",
+            err
+          );
+        }
+      }
     } catch (err) {
       throw new ApiError(
         502,

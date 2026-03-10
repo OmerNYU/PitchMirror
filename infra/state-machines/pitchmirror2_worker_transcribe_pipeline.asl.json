@@ -1,0 +1,258 @@
+{
+    "Comment": "PitchMirror2 pipeline: VALIDATE -> ECS worker -> Transcribe (json+vtt) -> FINALIZE",
+    "StartAt": "MarkRunning",
+    "States": {
+      "MarkRunning": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+        "ResultPath": null,
+        "Parameters": {
+          "TableName": "pitchmirror2-jobs",
+          "Key": { "jobId": { "S.$": "$.jobId" } },
+          "ConditionExpression": "#stage = :expectedStage",
+          "UpdateExpression": "SET #status = :running, #stage = :process, executionArn = :execArn, startedAt = :startedAt, updatedAt = :updatedAt REMOVE errorCode, errorMessage",
+          "ExpressionAttributeNames": { "#status": "status", "#stage": "stage" },
+          "ExpressionAttributeValues": {
+            ":expectedStage": { "S": "VALIDATE" },
+            ":running": { "S": "RUNNING" },
+            ":process": { "S": "PROCESS" },
+            ":execArn": { "S.$": "$$.Execution.Id" },
+            ":startedAt": { "S.$": "$$.Execution.StartTime" },
+            ":updatedAt": { "S.$": "$$.State.EnteredTime" }
+          }
+        },
+        "Catch": [
+          { "ErrorEquals": ["DynamoDB.ConditionalCheckFailedException"], "Next": "NoOpSuccess" },
+          { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed" }
+        ],
+        "Next": "RunWorker"
+      },
+  
+      "RunWorker": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::ecs:runTask.sync",
+        "ResultPath": null,
+        "TimeoutSeconds": 300,
+        "Parameters": {
+          "Cluster": "arn:aws:ecs:us-east-1:127214190437:cluster/pitchmirror2",
+          "LaunchType": "FARGATE",
+          "TaskDefinition": "arn:aws:ecs:us-east-1:127214190437:task-definition/pitchmirror2-worker:2",
+          "NetworkConfiguration": {
+            "AwsvpcConfiguration": {
+              "Subnets": ["subnet-0c23efe0ee9f8cd20", "subnet-0d50183b190718da0"],
+              "SecurityGroups": ["sg-0a6fab69b459a21de"],
+              "AssignPublicIp": "ENABLED"
+            }
+          },
+          "Overrides": {
+            "ContainerOverrides": [
+              {
+                "Name": "worker",
+                "Environment": [
+                  { "Name": "JOB_ID", "Value.$": "$.jobId" },
+                  { "Name": "RAW_BUCKET", "Value.$": "$.rawBucket" },
+                  { "Name": "RAW_KEY", "Value.$": "$.rawKey" },
+                  { "Name": "DERIVED_BUCKET", "Value.$": "$.derivedBucket" },
+                  { "Name": "MODE", "Value.$": "$.mode" },
+                  { "Name": "TIER", "Value.$": "$.tier" }
+                ]
+              }
+            ]
+          }
+        },
+        "Catch": [
+          { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed" }
+        ],
+        "Next": "ShouldTranscribe"
+      },
+  
+      "ShouldTranscribe": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.mode",
+            "StringEquals": "presence",
+            "Next": "VerifyReport"
+          }
+        ],
+        "Default": "SetTranscribePaths"
+      },
+  
+      "SetTranscribePaths": {
+        "Type": "Pass",
+        "ResultPath": "$.transcribe",
+        "Parameters": {
+          "jobName.$": "$.jobId",
+          "audioKey.$": "States.Format('derived/{}/audio.wav', $.jobId)",
+          "outputPrefix.$": "States.Format('derived/{}/transcribe/', $.jobId)",
+          "srcJsonKey.$": "States.Format('derived/{}/transcribe/{}.json', $.jobId, $.jobId)",
+          "srcVttKey.$": "States.Format('derived/{}/transcribe/{}.vtt', $.jobId, $.jobId)",
+          "destJsonKey.$": "States.Format('derived/{}/transcript.json', $.jobId)",
+          "destVttKey.$": "States.Format('derived/{}/subtitles.vtt', $.jobId)"
+        },
+        "Next": "StartTranscribe"
+      },
+  
+      "StartTranscribe": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::aws-sdk:transcribe:startTranscriptionJob",
+        "ResultPath": null,
+        "Parameters": {
+          "TranscriptionJobName.$": "$.transcribe.jobName",
+          "LanguageCode": "en-US",
+          "Media": {
+            "MediaFileUri.$": "States.Format('s3://{}/{}', $.derivedBucket, $.transcribe.audioKey)"
+          },
+          "MediaFormat": "wav",
+          "OutputBucketName.$": "$.derivedBucket",
+          "OutputKey.$": "$.transcribe.outputPrefix",
+          "Subtitles": {
+            "Formats": ["vtt"],
+            "OutputStartIndex": 0
+          }
+        },
+        "Catch": [
+          {
+            "ErrorEquals": ["ConflictException", "Transcribe.ConflictException"],
+            "Next": "WaitTranscribe"
+          },
+          {
+            "ErrorEquals": ["States.ALL"],
+            "ResultPath": "$.error",
+            "Next": "MarkFailed"
+          }
+        ],
+        "Next": "WaitTranscribe"
+      },
+  
+      "WaitTranscribe": {
+        "Type": "Wait",
+        "Seconds": 5,
+        "Next": "GetTranscribeStatus"
+      },
+  
+      "GetTranscribeStatus": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::aws-sdk:transcribe:getTranscriptionJob",
+        "ResultPath": "$.transcribeStatus",
+        "Parameters": {
+          "TranscriptionJobName.$": "$.transcribe.jobName"
+        },
+        "Catch": [
+          { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed" }
+        ],
+        "Next": "TranscribeDone?"
+      },
+  
+      "TranscribeDone?": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.transcribeStatus.TranscriptionJob.TranscriptionJobStatus",
+            "StringEquals": "COMPLETED",
+            "Next": "CopyTranscriptJson"
+          },
+          {
+            "Variable": "$.transcribeStatus.TranscriptionJob.TranscriptionJobStatus",
+            "StringEquals": "FAILED",
+            "Next": "MarkFailed"
+          }
+        ],
+        "Default": "WaitTranscribe"
+      },
+  
+      "CopyTranscriptJson": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::aws-sdk:s3:copyObject",
+        "ResultPath": null,
+        "Parameters": {
+          "Bucket.$": "$.derivedBucket",
+          "Key.$": "$.transcribe.destJsonKey",
+          "CopySource.$": "States.Format('{}/{}', $.derivedBucket, $.transcribe.srcJsonKey)",
+          "ContentType": "application/json"
+        },
+        "Catch": [
+          { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed" }
+        ],
+        "Next": "CopySubtitlesVtt"
+      },
+  
+      "CopySubtitlesVtt": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::aws-sdk:s3:copyObject",
+        "ResultPath": null,
+        "Parameters": {
+          "Bucket.$": "$.derivedBucket",
+          "Key.$": "$.transcribe.destVttKey",
+          "CopySource.$": "States.Format('{}/{}', $.derivedBucket, $.transcribe.srcVttKey)",
+          "ContentType": "text/vtt"
+        },
+        "Catch": [
+          { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed" }
+        ],
+        "Next": "VerifyReport"
+      },
+  
+      "VerifyReport": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::aws-sdk:s3:headObject",
+        "ResultPath": null,
+        "Parameters": {
+          "Bucket.$": "$.derivedBucket",
+          "Key.$": "$.reportKey"
+        },
+        "Catch": [
+          { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed" }
+        ],
+        "Next": "MarkSucceeded"
+      },
+  
+      "MarkSucceeded": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+        "ResultPath": null,
+        "Parameters": {
+          "TableName": "pitchmirror2-jobs",
+          "Key": { "jobId": { "S.$": "$.jobId" } },
+          "ConditionExpression": "#stage = :expectedStage",
+          "UpdateExpression": "SET #status = :succeeded, #stage = :finalize, finishedAt = :finishedAt, reportKey = :reportKey, updatedAt = :updatedAt REMOVE errorCode, errorMessage",
+          "ExpressionAttributeNames": { "#status": "status", "#stage": "stage" },
+          "ExpressionAttributeValues": {
+            ":expectedStage": { "S": "PROCESS" },
+            ":succeeded": { "S": "SUCCEEDED" },
+            ":finalize": { "S": "FINALIZE" },
+            ":finishedAt": { "S.$": "$$.State.EnteredTime" },
+            ":reportKey": { "S.$": "$.reportKey" },
+            ":updatedAt": { "S.$": "$$.State.EnteredTime" }
+          }
+        },
+        "Catch": [
+          { "ErrorEquals": ["DynamoDB.ConditionalCheckFailedException"], "Next": "NoOpSuccess" },
+          { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed" }
+        ],
+        "End": true
+      },
+  
+      "MarkFailed": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+        "ResultPath": null,
+        "Parameters": {
+          "TableName": "pitchmirror2-jobs",
+          "Key": { "jobId": { "S.$": "$.jobId" } },
+          "UpdateExpression": "SET #status = :failed, errorCode = :errCode, errorMessage = :errMsg, finishedAt = :finishedAt, updatedAt = :updatedAt",
+          "ExpressionAttributeNames": { "#status": "status" },
+          "ExpressionAttributeValues": {
+            ":failed": { "S": "FAILED" },
+            ":errCode": { "S.$": "$.error.Error" },
+            ":errMsg": { "S.$": "$.error.Cause" },
+            ":finishedAt": { "S.$": "$$.State.EnteredTime" },
+            ":updatedAt": { "S.$": "$$.State.EnteredTime" }
+          }
+        },
+        "End": true
+      },
+  
+      "NoOpSuccess": { "Type": "Succeed" }
+    }
+  }

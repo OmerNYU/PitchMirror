@@ -1,0 +1,150 @@
+{
+  "Comment": "PitchMirror2 worker pipeline: VALIDATE -> ECS worker -> FINALIZE",
+  "StartAt": "MarkRunning",
+  "States": {
+    "MarkRunning": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+      "ResultPath": null,
+      "Parameters": {
+        "TableName": "pitchmirror2-jobs",
+        "Key": { "jobId": { "S.$": "$.jobId" } },
+        "ConditionExpression": "#stage = :expectedStage",
+        "UpdateExpression": "SET #status = :running, #stage = :process, executionArn = :execArn, startedAt = :startedAt, updatedAt = :updatedAt REMOVE errorCode, errorMessage",
+        "ExpressionAttributeNames": {
+          "#status": "status",
+          "#stage": "stage"
+        },
+        "ExpressionAttributeValues": {
+          ":expectedStage": { "S": "VALIDATE" },
+          ":running": { "S": "RUNNING" },
+          ":process": { "S": "PROCESS" },
+          ":execArn": { "S.$": "$$.Execution.Id" },
+          ":startedAt": { "S.$": "$$.Execution.StartTime" },
+          ":updatedAt": { "S.$": "$$.State.EnteredTime" }
+        }
+      },
+      "Catch": [
+        { "ErrorEquals": ["DynamoDB.ConditionalCheckFailedException"], "Next": "NoOpSuccess" },
+        { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed" }
+      ],
+      "Next": "RunWorker"
+    },
+
+    "RunWorker": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::ecs:runTask.sync",
+      "ResultPath": null,
+      "TimeoutSeconds": 300,
+      "Parameters": {
+        "Cluster": "arn:aws:ecs:us-east-1:127214190437:cluster/pitchmirror2",
+        "LaunchType": "FARGATE",
+        "TaskDefinition": "arn:aws:ecs:us-east-1:127214190437:task-definition/pitchmirror2-worker:2",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": [
+              "subnet-0c23efe0ee9f8cd20",
+              "subnet-0d50183b190718da0"
+            ],
+            "SecurityGroups": [
+              "sg-0a6fab69b459a21de"
+            ],
+            "AssignPublicIp": "ENABLED"
+          }
+        },
+        "Overrides": {
+          "ContainerOverrides": [
+            {
+              "Name": "worker",
+              "Environment": [
+                { "Name": "JOB_ID", "Value.$": "$.jobId" },
+                { "Name": "RAW_BUCKET", "Value.$": "$.rawBucket" },
+                { "Name": "RAW_KEY", "Value.$": "$.rawKey" },
+                { "Name": "DERIVED_BUCKET", "Value.$": "$.derivedBucket" },
+                { "Name": "MODE", "Value.$": "$.mode" },
+                { "Name": "TIER", "Value.$": "$.tier" }
+              ]
+            }
+          ]
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2.0,
+          "MaxAttempts": 2
+        }
+      ],
+      "Catch": [
+        { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed" }
+      ],
+      "Next": "VerifyReport"
+    },
+
+    "VerifyReport": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:s3:headObject",
+      "ResultPath": null,
+      "Parameters": {
+        "Bucket.$": "$.derivedBucket",
+        "Key.$": "$.reportKey"
+      },
+      "Catch": [
+        { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed" }
+      ],
+      "Next": "MarkSucceeded"
+    },
+
+    "MarkSucceeded": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+      "ResultPath": null,
+      "Parameters": {
+        "TableName": "pitchmirror2-jobs",
+        "Key": { "jobId": { "S.$": "$.jobId" } },
+        "ConditionExpression": "#stage = :expectedStage",
+        "UpdateExpression": "SET #status = :succeeded, #stage = :finalize, finishedAt = :finishedAt, reportKey = :reportKey, updatedAt = :updatedAt REMOVE errorCode, errorMessage",
+        "ExpressionAttributeNames": {
+          "#status": "status",
+          "#stage": "stage"
+        },
+        "ExpressionAttributeValues": {
+          ":expectedStage": { "S": "PROCESS" },
+          ":succeeded": { "S": "SUCCEEDED" },
+          ":finalize": { "S": "FINALIZE" },
+          ":finishedAt": { "S.$": "$$.State.EnteredTime" },
+          ":reportKey": { "S.$": "$.reportKey" },
+          ":updatedAt": { "S.$": "$$.State.EnteredTime" }
+        }
+      },
+      "Catch": [
+        { "ErrorEquals": ["DynamoDB.ConditionalCheckFailedException"], "Next": "NoOpSuccess" },
+        { "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarkFailed" }
+      ],
+      "End": true
+    },
+
+    "MarkFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+      "ResultPath": null,
+      "Parameters": {
+        "TableName": "pitchmirror2-jobs",
+        "Key": { "jobId": { "S.$": "$.jobId" } },
+        "UpdateExpression": "SET #status = :failed, errorCode = :errCode, errorMessage = :errMsg, finishedAt = :finishedAt, updatedAt = :updatedAt",
+        "ExpressionAttributeNames": { "#status": "status" },
+        "ExpressionAttributeValues": {
+          ":failed": { "S": "FAILED" },
+          ":errCode": { "S.$": "$.error.Error" },
+          ":errMsg": { "S.$": "$.error.Cause" },
+          ":finishedAt": { "S.$": "$$.State.EnteredTime" },
+          ":updatedAt": { "S.$": "$$.State.EnteredTime" }
+        }
+      },
+      "End": true
+    },
+
+    "NoOpSuccess": { "Type": "Succeed" }
+  }
+}

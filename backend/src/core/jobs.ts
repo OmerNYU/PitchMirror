@@ -262,6 +262,8 @@ export async function finalizeJob(
       reportKey,
       mode: job.mode,
       tier: job.tier,
+      transcriptKey: job.transcriptKey ?? "",
+      subtitlesKey: job.subtitlesKey ?? "",
     }
   );
 

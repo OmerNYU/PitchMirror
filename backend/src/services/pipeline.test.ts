@@ -82,5 +82,53 @@ describe("startStubPipeline", () => {
       errorMessage: "Access denied to StartExecution",
     });
   });
+
+  it("serializes transcriptKey and subtitlesKey into input (empty string when absent)", async () => {
+    let capturedInput: string | undefined;
+    sfnMock.on(StartExecutionCommand).callsFake((args) => {
+      capturedInput = args.input as string;
+      return Promise.resolve({
+        executionArn: "arn:aws:states:us-east-1:123456789012:execution:stub:job-123",
+      });
+    });
+
+    const client = new SFNClient({ region: "us-east-1" });
+
+    await startStubPipeline(
+      client,
+      "arn:aws:states:us-east-1:123456789012:stateMachine:stub",
+      baseParams
+    );
+
+    const parsed = JSON.parse(capturedInput!);
+    expect(parsed.transcriptKey).toBe("");
+    expect(parsed.subtitlesKey).toBe("");
+  });
+
+  it("serializes provided transcriptKey and subtitlesKey into input", async () => {
+    let capturedInput: string | undefined;
+    sfnMock.on(StartExecutionCommand).callsFake((args) => {
+      capturedInput = args.input as string;
+      return Promise.resolve({
+        executionArn: "arn:aws:states:us-east-1:123456789012:execution:stub:job-123",
+      });
+    });
+
+    const client = new SFNClient({ region: "us-east-1" });
+
+    await startStubPipeline(
+      client,
+      "arn:aws:states:us-east-1:123456789012:stateMachine:stub",
+      {
+        ...baseParams,
+        transcriptKey: "derived/job-123/transcript.json",
+        subtitlesKey: "derived/job-123/subtitles.vtt",
+      }
+    );
+
+    const parsed = JSON.parse(capturedInput!);
+    expect(parsed.transcriptKey).toBe("derived/job-123/transcript.json");
+    expect(parsed.subtitlesKey).toBe("derived/job-123/subtitles.vtt");
+  });
 });
 

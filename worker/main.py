@@ -25,6 +25,9 @@ class Config:
     derived_bucket: str
     mode: str
     tier: str
+    transcript_key: Optional[str] = None
+    subtitles_key: Optional[str] = None
+    bedrock_model_id: Optional[str] = None
 
 
 ALLOWED_MODES = {"voice", "presence", "full"}
@@ -41,6 +44,10 @@ FFPROBE_JSON_PATH = "/tmp/ffprobe.json"
 AUDIO_PATH = "/tmp/audio.wav"
 METRICS_PATH = "/tmp/metrics.json"
 REPORT_PATH = "/tmp/report.json"
+REPORT_STANDARD_PATH = "/tmp/report_standard.json"
+REPORT_AI_PATH = "/tmp/report_ai.json"
+TRANSCRIPT_MAX_CHARS = 15000
+MAX_FRAMES_FOR_NOVA = 3
 
 
 def setup_logging() -> None:
@@ -87,6 +94,10 @@ def load_config() -> Config:
     if tier not in ALLOWED_TIERS:
         raise ValueError(f"Invalid TIER '{tier}', expected one of {sorted(ALLOWED_TIERS)}")
 
+    transcript_key = os.environ.get("TRANSCRIPT_KEY", "").strip() or None
+    subtitles_key = os.environ.get("SUBTITLES_KEY", "").strip() or None
+    bedrock_model_id = os.environ.get("BEDROCK_MODEL_ID", "").strip() or None
+
     return Config(
         job_id=job_id,
         raw_bucket=raw_bucket,
@@ -94,6 +105,9 @@ def load_config() -> Config:
         derived_bucket=derived_bucket,
         mode=mode,
         tier=tier,
+        transcript_key=transcript_key,
+        subtitles_key=subtitles_key,
+        bedrock_model_id=bedrock_model_id,
     )
 
 
@@ -556,6 +570,163 @@ def validate_report(report: Dict, cfg: Config) -> None:
                 raise ValueError(f"{section_name}.score must be an integer 0–100 when present")
 
 
+def fetch_transcript_text(s3, bucket: str, key: str) -> Optional[str]:
+    """Fetch transcript JSON from S3 and return payload['text'] if present and non-empty."""
+    try:
+        resp = s3.get_object(Bucket=bucket, Key=key)
+        body = resp["Body"].read().decode("utf-8")
+        payload = json.loads(body)
+        text = payload.get("text") if isinstance(payload.get("text"), str) else None
+        if text and text.strip():
+            return text.strip()
+        return None
+    except (ClientError, BotoCoreError, json.JSONDecodeError, KeyError) as exc:
+        log_event("transcript_fetch_failed", bucket=bucket, key=key, error=str(exc))
+        return None
+
+
+def add_report_metadata(
+    report: Dict,
+    cfg: Config,
+    analysis_mode: str,
+    ai_used: bool,
+    transcript_used: bool,
+) -> Dict:
+    """Return a copy of report with metadata and artifacts.report set to final key."""
+    out = dict(report)
+    out["analysis_mode"] = analysis_mode
+    out["ai_used"] = ai_used
+    out["transcript_used"] = transcript_used
+    out.setdefault("artifacts", {})
+    out["artifacts"] = dict(out["artifacts"])
+    out["artifacts"]["report"] = {
+        "bucket": cfg.derived_bucket,
+        "key": f"derived/{cfg.job_id}/report.json",
+    }
+    out["artifacts"].setdefault("raw", {"bucket": cfg.raw_bucket, "key": cfg.raw_key})
+    return out
+
+
+def merge_presence_into_heuristic(heuristic: Dict, ai_report: Dict) -> Dict:
+    """Return a copy of heuristic with presence section replaced by AI presence."""
+    out = dict(heuristic)
+    out["presence"] = dict(ai_report.get("presence", {}))
+    return out
+
+
+def inject_artifacts(report: Dict, cfg: Config) -> None:
+    """Set artifacts.raw and artifacts.report so validation passes. Mutates report."""
+    report.setdefault("artifacts", {})
+    report["artifacts"]["raw"] = {"bucket": cfg.raw_bucket, "key": cfg.raw_key}
+    report["artifacts"]["report"] = {
+        "bucket": cfg.derived_bucket,
+        "key": f"derived/{cfg.job_id}/report.json",
+    }
+
+
+def _build_evidence_text(
+    metrics: Dict,
+    transcript_text: Optional[str],
+    frame_count: int,
+) -> str:
+    """Build user message evidence for Nova (text only; no inline images in this snippet)."""
+    parts = [f"Metrics: {json.dumps(metrics, indent=2)}"]
+    if transcript_text:
+        capped = transcript_text[:TRANSCRIPT_MAX_CHARS]
+        if len(transcript_text) > TRANSCRIPT_MAX_CHARS:
+            capped += "\n...(truncated)"
+        parts.append(f"Transcript:\n{capped}")
+    if frame_count > 0:
+        parts.append(f"Keyframes: {frame_count} representative frames extracted from the video.")
+    return "\n\n".join(parts)
+
+
+def _parse_json_from_response_text(content_blocks: List[Dict]) -> Optional[Dict]:
+    """Extract and parse a single JSON object from Converse response content blocks."""
+    text_parts = []
+    for block in content_blocks or []:
+        if "text" in block and block["text"]:
+            text_parts.append(block["text"])
+    raw = "".join(text_parts).strip()
+    if not raw:
+        return None
+    # Strip markdown code fences if present
+    if raw.startswith("```"):
+        lines = raw.split("\n")
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        raw = "\n".join(lines)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+
+
+def call_nova(
+    model_id: str,
+    metrics: Dict,
+    transcript_text: Optional[str],
+    frame_paths: List[str],
+    cfg: Config,
+    repair: bool = False,
+) -> Optional[Dict]:
+    """Call Bedrock Converse; return parsed report dict or None on failure."""
+    system = (
+        "You are a pitch coach. Return a single JSON object only, no markdown, no prose. "
+        "The JSON must match this shape: overall (score 0-100, summary), top_fixes (array of at least 3 objects "
+        "with issue, why, drill, expected_gain), voice, presence, content (each with optional score, highlights, "
+        "improvements, notes), practice_plan (array of {session, minutes, focus, steps}), limitations (array of strings), "
+        "artifacts (raw: {bucket, key}, report: {bucket, key})."
+    )
+    if repair:
+        system = "Return only valid JSON matching the report schema. No prose, no markdown."
+    evidence = _build_evidence_text(metrics, transcript_text, len(frame_paths))
+    user_content: List[Dict] = [{"text": evidence}]
+    # Add up to MAX_FRAMES_FOR_NOVA image blocks (local JPEG bytes)
+    for path in frame_paths[:MAX_FRAMES_FOR_NOVA]:
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, "rb") as f:
+                img_bytes = f.read()
+            user_content.append({
+                "image": {
+                    "format": "jpeg",
+                    "source": {"bytes": img_bytes},
+                },
+            })
+        except OSError:
+            continue
+    try:
+        br = boto3.client("bedrock-runtime")
+        response = br.converse(
+            modelId=model_id,
+            messages=[{"role": "user", "content": user_content}],
+            system=[{"text": system}],
+            inferenceConfig={"maxTokens": 4096, "temperature": 0.2},
+        )
+    except (ClientError, BotoCoreError) as exc:
+        log_event("nova_call_failed", jobId=cfg.job_id, error=str(exc))
+        return None
+    content = (response.get("output") or {}).get("message") or {}
+    blocks = content.get("content") or []
+    parsed = _parse_json_from_response_text(blocks)
+    return parsed
+
+
+def call_nova_repair(
+    model_id: str,
+    metrics: Dict,
+    transcript_text: Optional[str],
+    frame_paths: List[str],
+    cfg: Config,
+) -> Optional[Dict]:
+    """One repair attempt: ask for valid JSON only."""
+    return call_nova(model_id, metrics, transcript_text, frame_paths, cfg, repair=True)
+
+
 def write_json(path: str, obj: Dict) -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=2)
@@ -595,9 +766,9 @@ def main() -> None:
             audio_rms = None
         frame_count, frame_timestamps = extract_frames_if_needed(cfg, INPUT_PATH, duration)
         metrics = compute_metrics(duration, fps, resolution, has_audio, audio_rms, frame_count, cfg)
-        report = build_report(cfg, metrics, ffprobe_data, audio_rms)
-        validate_report(report, cfg)
-        write_json(REPORT_PATH, report)
+        heuristic_report = build_report(cfg, metrics, ffprobe_data, audio_rms)
+        validate_report(heuristic_report, cfg)
+        write_json(REPORT_STANDARD_PATH, heuristic_report)
 
         uploaded_keys: List[str] = []
 
@@ -611,6 +782,7 @@ def main() -> None:
             upload_file(s3, AUDIO_PATH, cfg.derived_bucket, f"derived/{cfg.job_id}/audio.wav")
             uploaded_keys.append(f"derived/{cfg.job_id}/audio.wav")
 
+        frame_paths: List[str] = []
         if cfg.mode in {"presence", "full"}:
             for idx in range(1, len(frame_timestamps) + 1):
                 local_frame = f"/tmp/frame_{idx:03d}.jpg"
@@ -618,11 +790,114 @@ def main() -> None:
                     key = f"derived/{cfg.job_id}/frames/frame_{idx:03d}.jpg"
                     upload_file(s3, local_frame, cfg.derived_bucket, key)
                     uploaded_keys.append(key)
+                    frame_paths.append(local_frame)
 
+        upload_file(s3, REPORT_STANDARD_PATH, cfg.derived_bucket, f"derived/{cfg.job_id}/report.standard.json")
+        uploaded_keys.append(f"derived/{cfg.job_id}/report.standard.json")
+
+        # From here on, failures must not exit(1): produce a valid report.json from heuristic if needed.
+        transcript_text: Optional[str] = None
+        if cfg.transcript_key:
+            transcript_text = fetch_transcript_text(s3, cfg.derived_bucket, cfg.transcript_key)
+
+        run_nova = False
+        nova_use_transcript = False
+        nova_use_frames = False
+        is_hybrid_merge = False
+        if cfg.bedrock_model_id:
+            if cfg.mode == "presence":
+                run_nova = True
+                nova_use_frames = True
+            elif cfg.mode == "voice":
+                if transcript_text:
+                    run_nova = True
+                    nova_use_transcript = True
+            elif cfg.mode == "full":
+                if transcript_text:
+                    run_nova = True
+                    nova_use_transcript = True
+                    nova_use_frames = True
+                else:
+                    run_nova = True
+                    nova_use_frames = True
+                    is_hybrid_merge = True
+
+        final_report: Optional[Dict] = None
+        if run_nova:
+            try:
+                ai_report = call_nova(
+                    cfg.bedrock_model_id,
+                    metrics,
+                    transcript_text if nova_use_transcript else None,
+                    frame_paths if nova_use_frames else [],
+                    cfg,
+                )
+                if ai_report is None:
+                    final_report = add_report_metadata(
+                        heuristic_report, cfg, "standard", False, nova_use_transcript
+                    )
+                else:
+                    inject_artifacts(ai_report, cfg)
+                    ai_valid = False
+                    try:
+                        validate_report(ai_report, cfg)
+                        ai_valid = True
+                    except ValueError:
+                        ai_report = call_nova_repair(
+                            cfg.bedrock_model_id,
+                            metrics,
+                            transcript_text if nova_use_transcript else None,
+                            frame_paths if nova_use_frames else [],
+                            cfg,
+                        )
+                        if ai_report is None:
+                            final_report = add_report_metadata(
+                                heuristic_report, cfg, "standard", False, nova_use_transcript
+                            )
+                        else:
+                            inject_artifacts(ai_report, cfg)
+                            try:
+                                validate_report(ai_report, cfg)
+                                ai_valid = True
+                            except ValueError:
+                                final_report = add_report_metadata(
+                                    heuristic_report, cfg, "standard", False, nova_use_transcript
+                                )
+                    if ai_valid and ai_report is not None:
+                        write_json(REPORT_AI_PATH, ai_report)
+                        upload_file(
+                            s3, REPORT_AI_PATH, cfg.derived_bucket,
+                            f"derived/{cfg.job_id}/report.ai.json",
+                        )
+                        uploaded_keys.append(f"derived/{cfg.job_id}/report.ai.json")
+                        if is_hybrid_merge:
+                            merged = merge_presence_into_heuristic(heuristic_report, ai_report)
+                            final_report = add_report_metadata(
+                                merged, cfg, "hybrid", True, False
+                            )
+                        else:
+                            final_report = add_report_metadata(
+                                ai_report, cfg, "ai", True, nova_use_transcript
+                            )
+            except Exception as exc:
+                log_event("nova_recovery", jobId=cfg.job_id, error=str(exc))
+                final_report = add_report_metadata(
+                    heuristic_report, cfg, "standard", False, False
+                )
+        else:
+            final_report = add_report_metadata(
+                heuristic_report, cfg, "standard", False, False
+            )
+
+        if final_report is None:
+            final_report = add_report_metadata(
+                heuristic_report, cfg, "standard", False, False
+            )
+
+        write_json(REPORT_PATH, final_report)
         upload_file(s3, REPORT_PATH, cfg.derived_bucket, f"derived/{cfg.job_id}/report.json")
         uploaded_keys.append(f"derived/{cfg.job_id}/report.json")
 
-        # Single end-of-run summary containing metrics and uploaded keys.
         log_event(
             "success",
             jobId=cfg.job_id,

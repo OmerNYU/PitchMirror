@@ -195,6 +195,10 @@ Expected JSON shape (from the stub report schema):
 - `limitations`: array of strings (at least 1)
 - `artifacts`: object (contains raw and report locations)
 - Optional `note` string
+- When produced by the ECS worker, the report may also include:
+  - `analysis_mode`: `"standard"` | `"ai"` | `"hybrid"`
+  - `ai_used`: boolean
+  - `transcript_used`: boolean
 
 Validate that the JSON includes the canonical keys: `overall`, `top_fixes`, `voice`, `presence`, `content`, `practice_plan`, `limitations`, `artifacts`, `note`. Optional: `schema_version`, `generatedAt`.
 

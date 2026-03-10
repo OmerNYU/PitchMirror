@@ -12,12 +12,13 @@ schema-valid `report.json` into the derived S3 bucket.
 - Optionally extract mono 16kHz WAV audio and compute RMS.
 - Optionally extract keyframes for presence analysis.
 - Compute `metrics.json`.
-- Build a report object that conforms to the backend `ReportSchema` and upload
-  it as `derived/<JOB_ID>/report.json`.
+- Build a heuristic report and optionally call Nova (Bedrock Converse) for
+  enhanced analysis. Upload `report.standard.json` (always), `report.ai.json`
+  (when AI succeeds), and `report.json` (the final canonical report).
 
 ## Environment variables
 
-The worker expects the following environment variables:
+**Required:**
 
 - `JOB_ID` – unique job identifier.
 - `RAW_BUCKET` – S3 bucket containing the uploaded video.
@@ -25,6 +26,14 @@ The worker expects the following environment variables:
 - `DERIVED_BUCKET` – S3 bucket for all derived artifacts.
 - `MODE` – one of: `voice`, `presence`, `full`.
 - `TIER` – one of: `free`, `pro`, `max` (controls duration caps).
+
+**Optional:**
+
+- `TRANSCRIPT_KEY` – S3 key of transcript JSON (e.g. user-uploaded). When set,
+  the worker reads `payload.text` and may send it to Nova for voice/full mode.
+- `SUBTITLES_KEY` – S3 key of WebVTT subtitles (informational; not sent to Nova).
+- `BEDROCK_MODEL_ID` – Bedrock model id for Nova (e.g. `amazon.nova-pro-v1:0`).
+  If unset, only the heuristic report is produced.
 
 If any required variable is missing or invalid, the worker logs a configuration
 error and exits with a non-zero status.
@@ -64,14 +73,20 @@ This will:
 - Run `ffprobe` and write `ffprobe.json`.
 - Enforce the duration cap for the given `TIER`.
 - Extract audio and/or frames depending on `MODE`.
-- Compute metrics and build a report.
-- Upload all artifacts under `derived/<JOB_ID>/...` in the derived bucket.
+- Compute metrics and build a heuristic report.
+- Upload `derived/<JOB_ID>/report.standard.json` (baseline report).
+- If `BEDROCK_MODEL_ID` is set and Nova succeeds, upload
+  `derived/<JOB_ID>/report.ai.json` and set the final report from AI or a
+  heuristic+AI merge (depending on mode and transcript).
+- Upload `derived/<JOB_ID>/report.json` (the canonical final report; backend
+  serves this key).
 
 You can inspect the outputs with the AWS CLI:
 
 ```bash
 aws s3 ls "s3://your-derived-bucket/derived/job-123/"
 aws s3 cp "s3://your-derived-bucket/derived/job-123/report.json" - | jq .
+# report.json may include analysis_mode, ai_used, transcript_used.
 ```
 
 ## Security and logging
@@ -81,16 +96,16 @@ aws s3 cp "s3://your-derived-bucket/derived/job-123/report.json" - | jq .
   fields like `jobId`, `mode`, `tier`, media duration, and the list of
   uploaded S3 keys.
 
-## Minimal report shape test
+## Report shape tests
 
-There is a small test script that constructs a sample report and runs the
-Python-side validation used by the worker. To run it:
+The test script builds sample reports (heuristic, with metadata, and hybrid
+merge) and runs the Python-side validation used by the worker:
 
 ```bash
 cd worker
-python test_report_schema.py
+python3 test_report_schema.py
 ```
 
-The script exits with status 0 if the sample report matches the expected shape,
-and non-zero otherwise.
+Use a virtualenv with `pip install -r requirements.txt` if needed. The script
+exits with status 0 if all report shapes pass validation, and non-zero otherwise.
 

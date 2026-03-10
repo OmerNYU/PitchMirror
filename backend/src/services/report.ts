@@ -50,6 +50,9 @@ export const ReportSchema = z.object({
     }),
   }),
   note: z.string().optional(),
+  analysis_mode: z.enum(["standard", "ai", "hybrid"]).optional(),
+  ai_used: z.boolean().optional(),
+  transcript_used: z.boolean().optional(),
 });
 
 export type Report = z.infer<typeof ReportSchema>;

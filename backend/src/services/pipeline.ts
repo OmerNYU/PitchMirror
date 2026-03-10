@@ -9,6 +9,10 @@ export interface StartStubPipelineParams {
   reportKey: string;
   mode: Mode;
   tier: Tier;
+  /** Pass empty string when absent so Step Functions always receives the key */
+  transcriptKey?: string;
+  /** Pass empty string when absent so Step Functions always receives the key */
+  subtitlesKey?: string;
 }
 
 export type PipelineStartResult =
@@ -39,6 +43,8 @@ export async function startStubPipeline(
     reportKey: params.reportKey,
     mode: params.mode,
     tier: params.tier,
+    transcriptKey: params.transcriptKey ?? "",
+    subtitlesKey: params.subtitlesKey ?? "",
   });
 
   try {

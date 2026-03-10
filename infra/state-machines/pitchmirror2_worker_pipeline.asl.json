@@ -62,7 +62,9 @@
                 { "Name": "RAW_KEY", "Value.$": "$.rawKey" },
                 { "Name": "DERIVED_BUCKET", "Value.$": "$.derivedBucket" },
                 { "Name": "MODE", "Value.$": "$.mode" },
-                { "Name": "TIER", "Value.$": "$.tier" }
+                { "Name": "TIER", "Value.$": "$.tier" },
+                { "Name": "TRANSCRIPT_KEY", "Value.$": "$.transcriptKey" },
+                { "Name": "SUBTITLES_KEY", "Value.$": "$.subtitlesKey" }
               ]
             }
           ]

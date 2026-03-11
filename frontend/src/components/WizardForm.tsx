@@ -14,6 +14,8 @@ export interface WizardFormState {
   mode: Mode;
   tier: Tier;
   consent: boolean;
+  transcriptText?: string;
+  pitchGoal?: string;
 }
 
 interface WizardFormProps {

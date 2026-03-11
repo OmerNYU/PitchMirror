@@ -46,7 +46,7 @@ body {
 }
 
 .card {
-  @apply rounded-2xl border border-slate-800 bg-slate-900/60 shadow-lg shadow-black/40;
+  @apply rounded-3xl border border-[color:var(--pm-border-subtle)] bg-[color:var(--pm-surface)] shadow-[0_18px_45px_rgba(15,23,42,0.16)];
 }
 
 .btn {

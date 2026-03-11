@@ -14,6 +14,7 @@ import type { WizardFormState } from "../WizardForm";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Stepper } from "../ui/Stepper";
+import { Textarea } from "../ui/textarea";
 import { UploadCloud, ShieldCheck, CheckCircle2 } from "lucide-react";
 
 interface PitchWizardProps {
@@ -365,6 +366,27 @@ export function PitchWizard({
                     A quick check that you&apos;re comfortable with how we
                     handle your video.
                   </p>
+                </div>
+
+                <div className="space-y-3 border-t border-[color:var(--pm-border-subtle)]/60 pt-3">
+                  <div className="space-y-1 text-xs text-[color:var(--pm-text-muted)]">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
+                      Optional transcript
+                    </p>
+                    <p>
+                      Paste a transcript if you already have one. We&apos;ll
+                      attach it to this job before analysis to improve
+                      content-aware feedback.
+                    </p>
+                  </div>
+                  <Textarea
+                    rows={4}
+                    placeholder="Paste your transcript here (optional)…"
+                    value={wizard.transcriptText ?? ""}
+                    onChange={(e) => update("transcriptText", e.target.value)}
+                    disabled={!canEdit}
+                    className="text-xs"
+                  />
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">

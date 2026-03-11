@@ -98,6 +98,11 @@ export interface Report {
   note?: string;
 }
 
+export interface UploadTranscriptInput {
+  transcriptText: string;
+  subtitlesVtt?: string;
+}
+
 export interface ApiErrorShape {
   code: string;
   message: string;
@@ -215,5 +220,25 @@ export async function getReport(jobId: string): Promise<Report> {
   }
 
   return (await res.json()) as Report;
+}
+
+export async function uploadTranscript(
+  jobId: string,
+  input: UploadTranscriptInput,
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/jobs/${encodeURIComponent(jobId)}/transcript`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!res.ok) {
+    await parseError(res);
+  }
 }
 

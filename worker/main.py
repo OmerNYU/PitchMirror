@@ -774,13 +774,34 @@ def call_nova(
 ) -> Optional[Dict]:
     """Call Bedrock Converse; return parsed report dict or None on failure."""
     if not repair:
-        system = (
-            "You are a pitch coach. Return a single JSON object only, no markdown, no prose. "
+        system_parts = [
+            "You are a pitch coach. Return a single JSON object only, no markdown, no prose.",
             "The JSON must match this shape: overall (score 0-100, summary), top_fixes (array of at least 3 objects "
             "with issue, why, drill, expected_gain), voice, presence, content (each with optional score, highlights, "
             "improvements, notes), practice_plan (array of {session, minutes, focus, steps}), limitations (array of strings), "
-            "artifacts (raw: {bucket, key}, report: {bucket, key})."
-        )
+            "artifacts (raw: {bucket, key}, report: {bucket, key}).",
+            "All feedback must stay honest and grounded strictly in the evidence you are given.",
+        ]
+        has_audio = bool(metrics.get("hasAudio"))
+        mode = metrics.get("mode") or ""
+        if not has_audio:
+            system_parts.append(
+                "There is no usable audio signal. Do not invent voice-quality evidence such as pacing, tone, modulation, "
+                "or vocal energy. Voice feedback must be limited, cautious, and explicitly acknowledge that it is based "
+                "on the absence of audio rather than on heard speech."
+            )
+            if transcript_text:
+                system_parts.append(
+                    "You may use the transcript text for content analysis, but voice analysis must still remain limited "
+                    "because there is no audio signal."
+                )
+        if mode == "presence":
+            system_parts.append(
+                "For presence analysis, do not describe the video as a placeholder, broken upload, or empty content "
+                "unless the visual evidence strongly supports that. Be conservative: if the visual evidence is weak or "
+                "ambiguous, say that your confidence is limited rather than inventing a failure mode."
+            )
+        system = " ".join(system_parts)
         evidence = _build_evidence_text(metrics, transcript_text, len(frame_paths))
         user_content: List[Dict] = [{"text": evidence}]
         # Add up to MAX_FRAMES_FOR_NOVA image blocks (local JPEG bytes)

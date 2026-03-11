@@ -700,6 +700,13 @@ def call_nova(
         except OSError:
             continue
     try:
+        log_event(
+            "converse_start",
+            jobId=cfg.job_id,
+            modelId=model_id,
+            repair=repair,
+            frameCount=len(frame_paths),
+        )
         br = boto3.client("bedrock-runtime")
         response = br.converse(
             modelId=model_id,
@@ -708,11 +715,34 @@ def call_nova(
             inferenceConfig={"maxTokens": 4096, "temperature": 0.2},
         )
     except (ClientError, BotoCoreError) as exc:
-        log_event("nova_call_failed", jobId=cfg.job_id, error=str(exc))
+        log_event("converse_failed", jobId=cfg.job_id, modelId=model_id, repair=repair, error=str(exc))
         return None
+    log_event(
+        "converse_success",
+        jobId=cfg.job_id,
+        modelId=model_id,
+        repair=repair,
+        stopReason=(response.get("stopReason") or (response.get("output") or {}).get("stopReason")),
+    )
     content = (response.get("output") or {}).get("message") or {}
     blocks = content.get("content") or []
     parsed = _parse_json_from_response_text(blocks)
+    if parsed is not None:
+        log_event("ai_parse_success", jobId=cfg.job_id)
+    else:
+        # Try to surface some raw text for debugging without logging huge payloads
+        text_parts = []
+        for block in blocks:
+            if "text" in block and block["text"]:
+                text_parts.append(block["text"])
+        raw_text = "".join(text_parts)
+        snippet = raw_text[:500]
+        log_event(
+            "ai_parse_failed",
+            jobId=cfg.job_id,
+            snippet=snippet,
+            truncated=len(raw_text) > len(snippet),
+        )
     return parsed
 
 
@@ -744,6 +774,7 @@ def main() -> None:
             rawBucket=cfg.raw_bucket,
             rawKey=cfg.raw_key,
             derivedBucket=cfg.derived_bucket,
+            hasModelId=bool(cfg.bedrock_model_id),
         )
         s3 = init_s3_client()
         head_input_object(s3, cfg)
@@ -822,6 +853,23 @@ def main() -> None:
                     nova_use_frames = True
                     is_hybrid_merge = True
 
+        log_event(
+            "ai_decision",
+            jobId=cfg.job_id,
+            mode=cfg.mode,
+            has_model_id=bool(cfg.bedrock_model_id),
+            has_transcript=bool(transcript_text),
+            should_run_ai=run_nova,
+            nova_use_transcript=nova_use_transcript,
+            nova_use_frames=nova_use_frames,
+            is_hybrid_merge=is_hybrid_merge,
+            reason=(
+                "no_model_id"
+                if not cfg.bedrock_model_id
+                else ("run" if run_nova else f"mode_{cfg.mode}_no_transcript")
+            ),
+        )
+
         final_report: Optional[Dict] = None
         if run_nova:
             try:
@@ -833,6 +881,11 @@ def main() -> None:
                     cfg,
                 )
                 if ai_report is None:
+                    log_event(
+                        "ai_fallback",
+                        jobId=cfg.job_id,
+                        reason="converse_returned_none",
+                    )
                     final_report = add_report_metadata(
                         heuristic_report, cfg, "standard", False, nova_use_transcript
                     )
@@ -841,8 +894,15 @@ def main() -> None:
                     ai_valid = False
                     try:
                         validate_report(ai_report, cfg)
+                        log_event("ai_validation_success", jobId=cfg.job_id)
                         ai_valid = True
-                    except ValueError:
+                    except ValueError as exc:
+                        log_event(
+                            "ai_validation_failed",
+                            jobId=cfg.job_id,
+                            error=str(exc),
+                        )
+                        log_event("ai_repair_start", jobId=cfg.job_id)
                         ai_report = call_nova_repair(
                             cfg.bedrock_model_id,
                             metrics,
@@ -851,6 +911,16 @@ def main() -> None:
                             cfg,
                         )
                         if ai_report is None:
+                            log_event(
+                                "ai_repair_failed",
+                                jobId=cfg.job_id,
+                                reason="repair_returned_none",
+                            )
+                            log_event(
+                                "ai_fallback",
+                                jobId=cfg.job_id,
+                                reason="repair_returned_none",
+                            )
                             final_report = add_report_metadata(
                                 heuristic_report, cfg, "standard", False, nova_use_transcript
                             )
@@ -858,8 +928,20 @@ def main() -> None:
                             inject_artifacts(ai_report, cfg)
                             try:
                                 validate_report(ai_report, cfg)
+                                log_event("ai_repair_success", jobId=cfg.job_id)
                                 ai_valid = True
-                            except ValueError:
+                            except ValueError as exc:
+                                log_event(
+                                    "ai_repair_failed",
+                                    jobId=cfg.job_id,
+                                    reason="repair_validation_failed",
+                                    error=str(exc),
+                                )
+                                log_event(
+                                    "ai_fallback",
+                                    jobId=cfg.job_id,
+                                    reason="repair_validation_failed",
+                                )
                                 final_report = add_report_metadata(
                                     heuristic_report, cfg, "standard", False, nova_use_transcript
                                 )
@@ -870,6 +952,11 @@ def main() -> None:
                             f"derived/{cfg.job_id}/report.ai.json",
                         )
                         uploaded_keys.append(f"derived/{cfg.job_id}/report.ai.json")
+                        log_event(
+                            "ai_report_uploaded",
+                            jobId=cfg.job_id,
+                            key=f"derived/{cfg.job_id}/report.ai.json",
+                        )
                         if is_hybrid_merge:
                             merged = merge_presence_into_heuristic(heuristic_report, ai_report)
                             final_report = add_report_metadata(
@@ -881,10 +968,21 @@ def main() -> None:
                             )
             except Exception as exc:
                 log_event("nova_recovery", jobId=cfg.job_id, error=str(exc))
+                    log_event("ai_fallback", jobId=cfg.job_id, reason="exception", error=str(exc))
                 final_report = add_report_metadata(
                     heuristic_report, cfg, "standard", False, False
                 )
         else:
+            fallback_reason = (
+                "no_model_id"
+                if not cfg.bedrock_model_id
+                else (f"mode_{cfg.mode}_no_transcript" if cfg.mode in {"voice", "full"} and not transcript_text else "run_nova_false")
+            )
+            log_event(
+                "ai_fallback",
+                jobId=cfg.job_id,
+                reason=fallback_reason,
+            )
             final_report = add_report_metadata(
                 heuristic_report, cfg, "standard", False, False
             )

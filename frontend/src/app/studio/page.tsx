@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -19,9 +19,12 @@ import {
 } from "../../components/WizardForm";
 import { type ProgressPhase } from "../../components/ProgressView";
 import { StudioLayout } from "../../components/ui/StudioLayout";
-import { PitchWizard } from "../../components/pitchmirror/PitchWizard";
-import { ReportSummary } from "../../components/pitchmirror/ReportSummary";
-import { ReportView } from "../../components/ReportView";
+import { StudioModeSelector } from "../../components/studio/StudioModeSelector";
+import { StudioUploadCard } from "../../components/studio/StudioUploadCard";
+import { StudioTranscriptCard } from "../../components/studio/StudioTranscriptCard";
+import { StudioAnalysisSummaryCard } from "../../components/studio/StudioAnalysisSummaryCard";
+import { StudioRightPanel } from "../../components/studio/StudioRightPanel";
+import { Button } from "../../components/ui/Button";
 
 type Phase = ProgressPhase;
 
@@ -42,7 +45,6 @@ export default function StudioPage() {
   const [report, setReport] = useState<Report | null>(null);
   const [requestId, setRequestId] = useState<string | null>(null);
   const [pipelineStart, setPipelineStart] = useState<string | null>(null);
-  const [currentStep, setCurrentStep] = useState<number>(1);
 
   const [apiError, setApiError] = useState<ApiErrorShape | null>(null);
   const [pipelineErrorCode, setPipelineErrorCode] = useState<string | null>(
@@ -102,7 +104,6 @@ export default function StudioPage() {
             if (cancelled) return;
             setReport(r);
             setPhase("report");
-            setCurrentStep(4);
           } catch (err) {
             if (cancelled) return;
             setApiError(
@@ -154,7 +155,6 @@ export default function StudioPage() {
         if (!isConflict || attempt === retries) {
           throw err;
         }
-        // simple backoff
         // eslint-disable-next-line no-await-in-loop
         await new Promise((resolve) => setTimeout(resolve, 800));
       }
@@ -185,7 +185,6 @@ export default function StudioPage() {
     const contentType = wizard.file.type as SupportedContentType;
 
     try {
-      setCurrentStep(4);
       setPhase("creating");
       const created = await createJob({
         mode: wizard.mode,
@@ -268,7 +267,6 @@ export default function StudioPage() {
         const r = await getReportWithRetry(trimmed, 3);
         setReport(r);
         setPhase("report");
-        setCurrentStep(4);
         return;
       }
 
@@ -286,42 +284,121 @@ export default function StudioPage() {
     }
   }
 
-  return (
-    <StudioLayout
-      wizard={
-        <div className="space-y-8">
-          <PitchWizard
-            wizard={wizard}
-            onWizardChange={setWizard}
-            currentStep={currentStep}
-            setCurrentStep={setCurrentStep}
-            phase={phase}
-            isBusy={isBusy}
-            formError={formError}
-            onAnalyze={handleAnalyze}
-            resumeJobId={resumeJobId}
-            setResumeJobId={setResumeJobId}
-            resumeBusy={resumeBusy}
-            onResume={handleResume}
-            apiError={apiError}
-            pipelineErrorCode={pipelineErrorCode}
-            pipelineErrorMessage={pipelineErrorMessage}
-            status={status}
-            jobId={jobId}
-            isPolling={isPolling}
-            requestId={requestId}
-            report={report}
-          />
-          <ReportView report={report} artifactsFromJob={status?.artifacts ?? null} />
-        </div>
-      }
-      sidebar={
-        <ReportSummary
-          report={report}
-          artifactsFromJob={status?.artifacts ?? null}
-        />
-      }
+  const leftColumn = (
+    <div className="space-y-8">
+      <StudioModeSelector
+        value={wizard.mode}
+        onChange={(mode) => setWizard((prev) => ({ ...prev, mode }))}
+        disabled={isBusy}
+      />
+      <StudioUploadCard
+        mode={wizard.mode}
+        file={wizard.file}
+        onFileChange={(file) => setWizard((prev) => ({ ...prev, file }))}
+        disabled={isBusy}
+      />
+      <StudioTranscriptCard
+        value={wizard.transcriptText ?? ""}
+        onChange={(transcriptText) =>
+          setWizard((prev) => ({ ...prev, transcriptText }))
+        }
+        disabled={isBusy}
+      />
+      <StudioAnalysisSummaryCard
+        mode={wizard.mode}
+        fileName={wizard.file?.name ?? null}
+        hasTranscript={(wizard.transcriptText ?? "").trim().length > 0}
+        consent={wizard.consent}
+        onConsentChange={(consent) =>
+          setWizard((prev) => ({ ...prev, consent }))
+        }
+        onStart={handleAnalyze}
+        disabled={isBusy}
+        isAnalyzing={isBusy}
+      />
+      {formError && (
+        <p className="text-[11px] text-red-600" role="alert">
+          {formError}
+        </p>
+      )}
+      <ResumeSection
+        resumeJobId={resumeJobId}
+        setResumeJobId={setResumeJobId}
+        onResume={handleResume}
+        resumeBusy={resumeBusy}
+        isBusy={isBusy}
+      />
+    </div>
+  );
+
+  const rightColumn = (
+    <StudioRightPanel
+      phase={phase}
+      mode={wizard.mode}
+      report={report}
+      status={status}
+      jobId={jobId}
+      isPolling={isPolling}
+      requestId={requestId}
+      apiError={apiError}
+      pipelineErrorCode={pipelineErrorCode}
+      pipelineErrorMessage={pipelineErrorMessage}
     />
+  );
+
+  return (
+    <StudioLayout wizard={leftColumn} sidebar={rightColumn} />
   );
 }
 
+function ResumeSection({
+  resumeJobId,
+  setResumeJobId,
+  onResume,
+  resumeBusy,
+  isBusy,
+}: {
+  resumeJobId: string;
+  setResumeJobId: (value: string) => void;
+  onResume: () => void;
+  resumeBusy: boolean;
+  isBusy: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="pt-2 text-xs">
+      <button
+        type="button"
+        className="text-[11px] text-[color:var(--pm-text-muted)] underline underline-offset-4 hover:text-[color:var(--pm-text-main)]"
+        onClick={() => setExpanded((open) => !open)}
+      >
+        {expanded ? "Hide resume options" : "Resume an earlier analysis"}
+      </button>
+      {expanded && (
+        <div className="mt-3 rounded-2xl border border-[color:var(--pm-border-subtle)]/70 bg-[color:var(--pm-surface-soft)]/50 px-3.5 py-3">
+          <p className="text-[11px] text-[color:var(--pm-text-muted)]">
+            Enter a job ID from a previous run to continue or open its report.
+          </p>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <input
+              type="text"
+              className="w-full rounded-full border border-[color:var(--pm-border-subtle)] bg-[color:var(--pm-surface-soft)] px-3 py-1.5 text-xs text-[color:var(--pm-text-main)] placeholder:text-[color:var(--pm-text-muted)] focus:border-[color:var(--pm-accent)] focus:outline-none focus:ring-1 focus:ring-[color:var(--pm-accent)]"
+              placeholder="Paste a job ID, e.g. 01HV…"
+              value={resumeJobId}
+              onChange={(e) => setResumeJobId(e.target.value)}
+              disabled={isBusy}
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onResume}
+              disabled={isBusy || resumeBusy}
+            >
+              {resumeBusy ? "Checking…" : "Resume by job ID"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

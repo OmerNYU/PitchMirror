@@ -1,0 +1,161 @@
+"use client";
+
+import type {
+  Mode,
+  Report,
+  JobStatusResponse,
+  ApiErrorShape,
+} from "../../lib/api";
+import type { ProgressPhase } from "../ProgressView";
+import { Card } from "../ui/Card";
+import { ProgressView } from "../ProgressView";
+import { ErrorView } from "../ErrorView";
+import { ReportSummary } from "../pitchmirror/ReportSummary";
+import { ReportView } from "../ReportView";
+
+interface StudioRightPanelProps {
+  phase: ProgressPhase;
+  mode: Mode;
+  report: Report | null;
+  status: JobStatusResponse | null;
+  jobId: string | null;
+  isPolling: boolean;
+  requestId: string | null;
+  apiError: ApiErrorShape | null;
+  pipelineErrorCode: string | null;
+  pipelineErrorMessage: string | null;
+}
+
+function WhatYouGetContent({ mode }: { mode: Mode }) {
+  switch (mode) {
+    case "voice":
+      return (
+        <>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
+            What you&apos;ll get
+          </p>
+          <h2 className="mt-2 font-[family-name:var(--font-display)] text-lg font-semibold text-[color:var(--pm-text-main)]">
+            Audio coaching summary
+          </h2>
+          <ul className="mt-3 space-y-1.5 text-xs text-[color:var(--pm-text-muted)]">
+            <li>Feedback on pacing, tone, and clarity of speech.</li>
+            <li>Notes on filler words, pauses, and delivery.</li>
+            <li>Targeted suggestions to strengthen your vocal presence.</li>
+          </ul>
+        </>
+      );
+    case "presence":
+      return (
+        <>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
+            What you&apos;ll get
+          </p>
+          <h2 className="mt-2 font-[family-name:var(--font-display)] text-lg font-semibold text-[color:var(--pm-text-main)]">
+            Camera coaching summary
+          </h2>
+          <ul className="mt-3 space-y-1.5 text-xs text-[color:var(--pm-text-muted)]">
+            <li>Feedback on posture, eye contact, and energy on camera.</li>
+            <li>Notes on how you come across visually.</li>
+            <li>Targeted suggestions to improve your on-camera presence.</li>
+          </ul>
+        </>
+      );
+    case "full":
+      return (
+        <>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
+            What you&apos;ll get
+          </p>
+          <h2 className="mt-2 font-[family-name:var(--font-display)] text-lg font-semibold text-[color:var(--pm-text-main)]">
+            Full pitch review
+          </h2>
+          <ul className="mt-3 space-y-1.5 text-xs text-[color:var(--pm-text-muted)]">
+            <li>1–2 paragraphs on how your pitch comes across overall.</li>
+            <li>Specific notes on voice, on-camera presence, and structure.</li>
+            <li>3 targeted suggestions to improve your next recording.</li>
+          </ul>
+        </>
+      );
+  }
+}
+
+export function StudioRightPanel({
+  phase,
+  mode,
+  report,
+  status,
+  jobId,
+  isPolling,
+  requestId,
+  apiError,
+  pipelineErrorCode,
+  pipelineErrorMessage,
+}: StudioRightPanelProps) {
+  const isProcessing =
+    phase === "creating" ||
+    phase === "uploading" ||
+    phase === "finalizing" ||
+    phase === "polling" ||
+    phase === "reportLoading";
+  const hasReport = !!report;
+
+  if (hasReport) {
+    return (
+      <div className="space-y-4 lg:space-y-6">
+        <ReportSummary
+          report={report}
+          artifactsFromJob={status?.artifacts ?? null}
+        />
+        <ReportView report={report} artifactsFromJob={status?.artifacts ?? null} />
+      </div>
+    );
+  }
+
+  if (isProcessing) {
+    return (
+      <div className="space-y-4">
+        <Card className="px-4 py-4 md:px-5 md:py-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
+            Status
+          </p>
+          <h2 className="mt-2 font-[family-name:var(--font-display)] text-lg font-semibold text-[color:var(--pm-text-main)]">
+            Analyzing your pitch
+          </h2>
+          <div className="mt-4">
+            <ProgressView
+              phase={phase}
+              jobId={jobId}
+              status={status}
+              isPolling={isPolling}
+              requestId={requestId}
+            />
+          </div>
+        </Card>
+        <ErrorView
+          error={apiError}
+          pipelineErrorCode={pipelineErrorCode}
+          pipelineErrorMessage={pipelineErrorMessage}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 lg:space-y-6">
+      <Card className="px-4 py-4 md:px-5 md:py-5">
+        <WhatYouGetContent mode={mode} />
+      </Card>
+      <Card tone="soft" className="px-4 py-4 md:px-5 md:py-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
+          How we handle your video
+        </p>
+        <ul className="mt-2 space-y-1.5 text-xs text-[color:var(--pm-text-muted)]">
+          <li>Max length: 5 minutes · Max size: 500 MB.</li>
+          <li>Supported formats: MP4, MOV, WebM.</li>
+          <li>Analysis usually completes within 30–60 seconds.</li>
+          <li>Videos are deleted automatically after processing.</li>
+        </ul>
+      </Card>
+    </div>
+  );
+}

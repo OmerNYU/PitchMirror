@@ -38,12 +38,12 @@ export function StudioLayout({ wizard, sidebar }: StudioLayoutProps) {
         </header>
 
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-          <section aria-label="Upload and analysis wizard" className="space-y-6">
+          <section aria-label="Setup and actions" className="space-y-6">
             {wizard}
           </section>
           <aside
-            aria-label="What you’ll get and privacy"
-            className="space-y-4 lg:space-y-6"
+            aria-label="Live summary and report"
+            className="space-y-4 lg:space-y-6 lg:sticky lg:top-24 lg:self-start"
           >
             {sidebar}
           </aside>

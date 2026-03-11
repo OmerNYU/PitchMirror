@@ -968,7 +968,7 @@ def main() -> None:
                             )
             except Exception as exc:
                 log_event("nova_recovery", jobId=cfg.job_id, error=str(exc))
-                    log_event("ai_fallback", jobId=cfg.job_id, reason="exception", error=str(exc))
+                log_event("ai_fallback", jobId=cfg.job_id, reason="exception", error=str(exc))
                 final_report = add_report_metadata(
                     heuristic_report, cfg, "standard", False, False
                 )

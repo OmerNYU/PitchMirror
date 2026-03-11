@@ -39,7 +39,7 @@
       "Parameters": {
         "Cluster": "arn:aws:ecs:us-east-1:127214190437:cluster/pitchmirror2",
         "LaunchType": "FARGATE",
-        "TaskDefinition": "arn:aws:ecs:us-east-1:127214190437:task-definition/pitchmirror2-worker:7",
+        "TaskDefinition": "arn:aws:ecs:us-east-1:127214190437:task-definition/pitchmirror2-worker:8",
         "NetworkConfiguration": {
           "AwsvpcConfiguration": {
             "Subnets": [

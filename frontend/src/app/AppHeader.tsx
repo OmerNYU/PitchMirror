@@ -20,16 +20,16 @@ export function AppHeader() {
           {onStudio ? (
             <Link
               href="/"
-              className="rounded-full border border-[color:var(--pm-border-subtle)]/70 bg-[color:var(--pm-surface-soft)] px-3 py-1 text-[11px] text-[color:var(--pm-text-muted)] hover:bg-[color:var(--pm-surface)]"
+              className="rounded-full border border-[color:var(--pm-border-subtle)]/70 bg-[color:var(--pm-surface-soft)] px-3 py-1 text-[11px] text-[color:var(--pm-text-muted)] hover:bg-[color:var(--pm-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--pm-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--pm-bg)]"
             >
               Back to overview
             </Link>
           ) : (
             <Link
               href="/studio"
-              className="rounded-full bg-[color:var(--pm-accent)] px-4 py-1.5 text-[11px] font-medium text-slate-950 shadow-[0_14px_35px_rgba(15,23,42,0.45)] hover:bg-[color:var(--pm-accent)]/90"
+              className="rounded-full bg-[color:var(--pm-accent)] px-4 py-1.5 text-[11px] font-medium text-slate-950 shadow-[0_14px_35px_rgba(15,23,42,0.45)] hover:bg-[color:var(--pm-accent)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--pm-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--pm-bg)]"
             >
-              Open Studio
+              Open the studio
             </Link>
           )}
         </nav>

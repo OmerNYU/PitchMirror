@@ -106,6 +106,14 @@
                 {
                   "Name": "TIER",
                   "Value.$": "$.tier"
+                },
+                {
+                  "Name": "TRANSCRIPT_KEY",
+                  "Value.$": "$.transcriptKey"
+                },
+                {
+                  "Name": "SUBTITLES_KEY",
+                  "Value.$": "$.subtitlesKey"
                 }
               ]
             }

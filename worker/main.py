@@ -624,6 +624,105 @@ def inject_artifacts(report: Dict, cfg: Config) -> None:
     }
 
 
+def normalize_ai_report(ai_report: Dict, heuristic_report: Dict) -> Tuple[Dict, Dict]:
+    """
+    Return a normalized copy of ai_report that is schema-valid wherever possible by
+    filling gaps from heuristic_report and fixing malformed scores.
+
+    - Preserve AI-generated fields when they are present and valid.
+    - Backfill missing required sections/fields from heuristic_report.
+    - For score fields:
+      - overall.score must always be a valid int 0–100; fall back to heuristic if needed.
+      - voice.score, when present, must be a valid int 0–100; otherwise fall back to heuristic.
+      - other section scores, when invalid and no heuristic default exists, are removed.
+
+    Returns (normalized_report, meta) where meta is a small dict summarizing changes.
+    """
+    # Deep copy via JSON round-trip to avoid mutating caller data.
+    try:
+        normalized = json.loads(json.dumps(ai_report))
+    except TypeError:
+        # Fallback: shallow copy if something is not JSON-serializable.
+        normalized = dict(ai_report)
+
+    meta = {
+        "sectionsBackfilled": [],
+        "scoresFixed": [],
+        "scoresRemoved": [],
+    }
+
+    # Ensure required top-level sections exist by backfilling from heuristic_report.
+    required_top_keys = [
+        "overall",
+        "top_fixes",
+        "voice",
+        "presence",
+        "content",
+        "practice_plan",
+        "limitations",
+        "artifacts",
+    ]
+    for key in required_top_keys:
+        if key not in normalized and key in heuristic_report:
+            normalized[key] = heuristic_report[key]
+            meta["sectionsBackfilled"].append(key)
+
+    def _get_score(section: Dict) -> Optional[int]:
+        value = section.get("score")
+        if isinstance(value, int) and 0 <= value <= 100:
+            return value
+        return None
+
+    def _ensure_overall_score() -> None:
+        overall_ai = normalized.get("overall") or {}
+        overall_heur = heuristic_report.get("overall") or {}
+        ai_score = _get_score(overall_ai)
+        if ai_score is not None:
+            return
+        heur_score = _get_score(overall_heur)
+        if heur_score is not None:
+            overall_ai = dict(overall_ai)
+            overall_ai["score"] = heur_score
+            normalized["overall"] = overall_ai
+            meta["scoresFixed"].append("overall.score")
+
+    def _normalize_section_score(section_name: str, allow_missing: bool) -> None:
+        section_ai = normalized.get(section_name)
+        section_heur = heuristic_report.get(section_name) or {}
+        if not isinstance(section_ai, dict):
+            if section_name in heuristic_report:
+                normalized[section_name] = heuristic_report[section_name]
+                meta["sectionsBackfilled"].append(section_name)
+            return
+        current = section_ai.get("score", None)
+        valid_ai = isinstance(current, int) and 0 <= current <= 100
+        if valid_ai:
+            return
+        heur_score = _get_score(section_heur)
+        if heur_score is not None:
+            section_ai = dict(section_ai)
+            section_ai["score"] = heur_score
+            normalized[section_name] = section_ai
+            meta["scoresFixed"].append(f"{section_name}.score")
+        else:
+            if "score" in section_ai:
+                section_ai = dict(section_ai)
+                section_ai.pop("score", None)
+                normalized[section_name] = section_ai
+                meta["scoresRemoved"].append(f"{section_name}.score")
+            if not allow_missing and section_name in heuristic_report:
+                normalized[section_name] = heuristic_report[section_name]
+                if section_name not in meta["sectionsBackfilled"]:
+                    meta["sectionsBackfilled"].append(section_name)
+
+    _ensure_overall_score()
+    _normalize_section_score("voice", allow_missing=False)
+    _normalize_section_score("presence", allow_missing=True)
+    _normalize_section_score("content", allow_missing=True)
+
+    return normalized, meta
+
+
 def _build_evidence_text(
     metrics: Dict,
     transcript_text: Optional[str],
@@ -671,34 +770,55 @@ def call_nova(
     frame_paths: List[str],
     cfg: Config,
     repair: bool = False,
+    repair_payload: Optional[Dict[str, str]] = None,
 ) -> Optional[Dict]:
     """Call Bedrock Converse; return parsed report dict or None on failure."""
-    system = (
-        "You are a pitch coach. Return a single JSON object only, no markdown, no prose. "
-        "The JSON must match this shape: overall (score 0-100, summary), top_fixes (array of at least 3 objects "
-        "with issue, why, drill, expected_gain), voice, presence, content (each with optional score, highlights, "
-        "improvements, notes), practice_plan (array of {session, minutes, focus, steps}), limitations (array of strings), "
-        "artifacts (raw: {bucket, key}, report: {bucket, key})."
-    )
-    if repair:
+    if not repair:
+        system = (
+            "You are a pitch coach. Return a single JSON object only, no markdown, no prose. "
+            "The JSON must match this shape: overall (score 0-100, summary), top_fixes (array of at least 3 objects "
+            "with issue, why, drill, expected_gain), voice, presence, content (each with optional score, highlights, "
+            "improvements, notes), practice_plan (array of {session, minutes, focus, steps}), limitations (array of strings), "
+            "artifacts (raw: {bucket, key}, report: {bucket, key})."
+        )
+        evidence = _build_evidence_text(metrics, transcript_text, len(frame_paths))
+        user_content: List[Dict] = [{"text": evidence}]
+        # Add up to MAX_FRAMES_FOR_NOVA image blocks (local JPEG bytes)
+        for path in frame_paths[:MAX_FRAMES_FOR_NOVA]:
+            if not os.path.exists(path):
+                continue
+            try:
+                with open(path, "rb") as f:
+                    img_bytes = f.read()
+                user_content.append({
+                    "image": {
+                        "format": "jpeg",
+                        "source": {"bytes": img_bytes},
+                    },
+                })
+            except OSError:
+                continue
+        inference_config = {"maxTokens": 4096, "temperature": 0.2}
+    else:
         system = "Return only valid JSON matching the report schema. No prose, no markdown."
-    evidence = _build_evidence_text(metrics, transcript_text, len(frame_paths))
-    user_content: List[Dict] = [{"text": evidence}]
-    # Add up to MAX_FRAMES_FOR_NOVA image blocks (local JPEG bytes)
-    for path in frame_paths[:MAX_FRAMES_FOR_NOVA]:
-        if not os.path.exists(path):
-            continue
-        try:
-            with open(path, "rb") as f:
-                img_bytes = f.read()
-            user_content.append({
-                "image": {
-                    "format": "jpeg",
-                    "source": {"bytes": img_bytes},
-                },
-            })
-        except OSError:
-            continue
+        invalid_json = (repair_payload or {}).get("invalid_json") or ""
+        error_text = (repair_payload or {}).get("error") or ""
+        user_text_parts = [
+            "You previously returned this JSON which failed validation.",
+            "Fix it to match the report schema exactly.",
+            "Return only JSON, no markdown, no prose, no explanation.",
+        ]
+        if invalid_json:
+            user_text_parts.append("Invalid JSON:")
+            user_text_parts.append(invalid_json)
+        if error_text:
+            user_text_parts.append("Validation error:")
+            user_text_parts.append(error_text)
+        user_text = "\n\n".join(user_text_parts)
+        user_content = [{"text": user_text}]
+        frame_paths = []
+        inference_config = {"maxTokens": 1024, "temperature": 0.0}
+
     try:
         log_event(
             "converse_start",
@@ -712,7 +832,7 @@ def call_nova(
             modelId=model_id,
             messages=[{"role": "user", "content": user_content}],
             system=[{"text": system}],
-            inferenceConfig={"maxTokens": 4096, "temperature": 0.2},
+            inferenceConfig=inference_config,
         )
     except (ClientError, BotoCoreError) as exc:
         log_event("converse_failed", jobId=cfg.job_id, modelId=model_id, repair=repair, error=str(exc))
@@ -748,13 +868,17 @@ def call_nova(
 
 def call_nova_repair(
     model_id: str,
-    metrics: Dict,
-    transcript_text: Optional[str],
-    frame_paths: List[str],
     cfg: Config,
+    invalid_json: str,
+    error: str,
 ) -> Optional[Dict]:
-    """One repair attempt: ask for valid JSON only."""
-    return call_nova(model_id, metrics, transcript_text, frame_paths, cfg, repair=True)
+    """One repair attempt: ask for valid JSON only, using compact context."""
+    repair_payload = {
+        "invalid_json": invalid_json,
+        "error": error,
+    }
+    # Metrics, transcript_text, and frame_paths are intentionally ignored for repair.
+    return call_nova(model_id, {}, None, [], cfg, repair=True, repair_payload=repair_payload)
 
 
 def write_json(path: str, obj: Dict) -> None:
@@ -893,7 +1017,16 @@ def main() -> None:
                     inject_artifacts(ai_report, cfg)
                     ai_valid = False
                     try:
-                        validate_report(ai_report, cfg)
+                        normalized_ai_report, norm_meta = normalize_ai_report(ai_report, heuristic_report)
+                        log_event(
+                            "ai_normalized",
+                            jobId=cfg.job_id,
+                            repair=False,
+                            sectionsBackfilled=norm_meta.get("sectionsBackfilled"),
+                            scoresFixed=norm_meta.get("scoresFixed"),
+                            scoresRemoved=norm_meta.get("scoresRemoved"),
+                        )
+                        validate_report(normalized_ai_report, cfg)
                         log_event("ai_validation_success", jobId=cfg.job_id)
                         ai_valid = True
                     except ValueError as exc:
@@ -903,12 +1036,18 @@ def main() -> None:
                             error=str(exc),
                         )
                         log_event("ai_repair_start", jobId=cfg.job_id)
+                        try:
+                            invalid_json = json.dumps(ai_report, default=str)
+                        except TypeError:
+                            invalid_json = str(ai_report)
+                        if len(invalid_json) > 8192:
+                            invalid_json = invalid_json[:8192] + "...(truncated)"
+                        error_text = str(exc)
                         ai_report = call_nova_repair(
                             cfg.bedrock_model_id,
-                            metrics,
-                            transcript_text if nova_use_transcript else None,
-                            frame_paths if nova_use_frames else [],
                             cfg,
+                            invalid_json,
+                            error_text,
                         )
                         if ai_report is None:
                             log_event(
@@ -927,7 +1066,16 @@ def main() -> None:
                         else:
                             inject_artifacts(ai_report, cfg)
                             try:
-                                validate_report(ai_report, cfg)
+                                normalized_ai_report, norm_meta = normalize_ai_report(ai_report, heuristic_report)
+                                log_event(
+                                    "ai_normalized",
+                                    jobId=cfg.job_id,
+                                    repair=True,
+                                    sectionsBackfilled=norm_meta.get("sectionsBackfilled"),
+                                    scoresFixed=norm_meta.get("scoresFixed"),
+                                    scoresRemoved=norm_meta.get("scoresRemoved"),
+                                )
+                                validate_report(normalized_ai_report, cfg)
                                 log_event("ai_repair_success", jobId=cfg.job_id)
                                 ai_valid = True
                             except ValueError as exc:
@@ -946,7 +1094,9 @@ def main() -> None:
                                     heuristic_report, cfg, "standard", False, nova_use_transcript
                                 )
                     if ai_valid and ai_report is not None:
-                        write_json(REPORT_AI_PATH, ai_report)
+                        # Use the last normalized version that passed validation.
+                        ai_out = normalized_ai_report
+                        write_json(REPORT_AI_PATH, ai_out)
                         upload_file(
                             s3, REPORT_AI_PATH, cfg.derived_bucket,
                             f"derived/{cfg.job_id}/report.ai.json",
@@ -958,13 +1108,13 @@ def main() -> None:
                             key=f"derived/{cfg.job_id}/report.ai.json",
                         )
                         if is_hybrid_merge:
-                            merged = merge_presence_into_heuristic(heuristic_report, ai_report)
+                            merged = merge_presence_into_heuristic(heuristic_report, ai_out)
                             final_report = add_report_metadata(
                                 merged, cfg, "hybrid", True, False
                             )
                         else:
                             final_report = add_report_metadata(
-                                ai_report, cfg, "ai", True, nova_use_transcript
+                                ai_out, cfg, "ai", True, nova_use_transcript
                             )
             except Exception as exc:
                 log_event("nova_recovery", jobId=cfg.job_id, error=str(exc))

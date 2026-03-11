@@ -5,6 +5,7 @@ from main import (
     add_report_metadata,
     build_report,
     merge_presence_into_heuristic,
+    normalize_ai_report,
     validate_report,
 )
 
@@ -99,11 +100,47 @@ def test_hybrid_final_report_metadata() -> bool:
     return True
 
 
+def test_normalize_ai_report_voice_score_and_backfill() -> bool:
+    """AI report with bad voice.score and missing sections is normalized to pass validation."""
+    cfg = Config(
+        job_id="test-job",
+        raw_bucket="raw-bucket",
+        raw_key="raw/test-job/input.mp4",
+        derived_bucket="derived-bucket",
+        mode="full",
+        tier="free",
+    )
+    metrics = {
+        "duration": 30.0,
+        "fps": 30.0,
+        "resolution": {"width": 1920, "height": 1080},
+        "hasAudio": True,
+        "audioRms": 1500.0,
+        "frameCountExtracted": 5,
+        "tier": cfg.tier,
+        "mode": cfg.mode,
+    }
+    heuristic = build_report(cfg, metrics, {}, metrics["audioRms"])
+    ai_report = {
+        "overall": {"score": "not-an-int", "summary": "AI summary"},
+        "voice": {"score": 150, "highlights": ["AI voice feedback"]},
+    }
+    normalized, _meta = normalize_ai_report(ai_report, heuristic)
+    validate_report(normalized, cfg)
+    assert isinstance(normalized["voice"]["score"], int)
+    assert 0 <= normalized["voice"]["score"] <= 100
+    assert "top_fixes" in normalized
+    assert "practice_plan" in normalized
+    assert "limitations" in normalized
+    return True
+
+
 def main() -> int:
     tests = [
         ("heuristic report", test_heuristic_report),
         ("heuristic-only final report with metadata", test_heuristic_only_final_report_with_metadata),
         ("hybrid final report metadata", test_hybrid_final_report_metadata),
+        ("normalize ai report voice score and backfill", test_normalize_ai_report_voice_score_and_backfill),
     ]
     for name, fn in tests:
         try:

@@ -1,5 +1,6 @@
 "use client";
 
+import { cloneElement, isValidElement } from "react";
 import { motion } from "framer-motion";
 import type React from "react";
 
@@ -10,6 +11,7 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
+  asChild?: boolean;
 }
 
 const baseClasses =
@@ -35,6 +37,7 @@ export function Button({
   className,
   disabled,
   children,
+  asChild = false,
   ...props
 }: ButtonProps) {
   const classes = [
@@ -45,6 +48,14 @@ export function Button({
   ]
     .filter(Boolean)
     .join(" ");
+
+  if (asChild && isValidElement(children)) {
+    return cloneElement(children as React.ReactElement<{ className?: string }>, {
+      className: [classes, (children.props as { className?: string }).className]
+        .filter(Boolean)
+        .join(" "),
+    });
+  }
 
   const isInteractive = !disabled;
 

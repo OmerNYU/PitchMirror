@@ -64,9 +64,9 @@ export function StudioModeSelector({
               aria-pressed={selected}
               aria-label={`${mode.label}: ${mode.subtitle}`}
               className={[
-                "flex flex-col items-start rounded-2xl border px-4 py-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--pm-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--pm-bg)]",
+                "flex flex-col items-start rounded-2xl border-2 px-4 py-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--pm-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--pm-bg)]",
                 selected
-                  ? "border-[color:var(--pm-accent)] bg-[color:var(--pm-accent-soft)]/60 shadow-[0_12px_40px_rgba(15,23,42,0.12)]"
+                  ? "border-[color:var(--pm-accent)] bg-[color:var(--pm-accent-soft)] shadow-[0_0_0_1px_var(--pm-accent),0_8px_24px_rgba(216,154,63,0.2)]"
                   : "border-[color:var(--pm-border-subtle)]/70 bg-[color:var(--pm-surface-soft)]/40 hover:border-[color:var(--pm-border-subtle)]",
                 disabled ? "pointer-events-none opacity-60" : "cursor-pointer",
               ]

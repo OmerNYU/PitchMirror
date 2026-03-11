@@ -285,7 +285,7 @@ export default function StudioPage() {
   }
 
   const leftColumn = (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <StudioModeSelector
         value={wizard.mode}
         onChange={(mode) => setWizard((prev) => ({ ...prev, mode }))}

@@ -102,23 +102,23 @@ export function StudioUploadCard({
   const canEdit = !disabled;
 
   return (
-    <Card className="px-5 py-5 md:px-6 md:py-6">
-      <div className="flex items-start gap-4">
-        <div className="mt-1 hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[color:var(--pm-border-subtle)] bg-[color:var(--pm-surface-soft)] text-[color:var(--pm-accent)] sm:flex">
+    <Card className="px-4 py-4 md:px-5 md:py-4">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[color:var(--pm-border-subtle)] bg-[color:var(--pm-surface-soft)] text-[color:var(--pm-accent)] sm:flex">
           {copy.icon}
         </div>
-        <div className="min-w-0 flex-1 space-y-4">
+        <div className="min-w-0 flex-1 space-y-3">
           <div>
-            <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[color:var(--pm-text-main)]">
+            <h2 className="font-[family-name:var(--font-display)] text-base font-semibold text-[color:var(--pm-text-main)]">
               {copy.title}
             </h2>
-            <p className="mt-1.5 text-xs text-[color:var(--pm-text-muted)]">
+            <p className="mt-1 text-xs text-[color:var(--pm-text-muted)]">
               {copy.hint}
             </p>
           </div>
           <label
             className={[
-              "flex min-h-[160px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-8 text-center text-sm transition-colors",
+              "flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-5 text-center text-sm transition-colors",
               dragActive
                 ? "border-[color:var(--pm-accent)] bg-[color:var(--pm-accent-soft)]/40"
                 : file
@@ -150,10 +150,10 @@ export function StudioUploadCard({
             <p className="text-sm font-medium text-[color:var(--pm-text-main)]">
               {file ? file.name : copy.dropLabel}
             </p>
-            <p className="mt-1 text-[11px] text-[color:var(--pm-text-muted)]">
+            <p className="mt-0.5 text-[11px] text-[color:var(--pm-text-muted)]">
               {copy.dropSub}
             </p>
-            <p className="mt-3 text-[10px] text-[color:var(--pm-text-muted)]">
+            <p className="mt-2 text-[10px] text-[color:var(--pm-text-muted)]">
               {copy.formats}
             </p>
           </label>

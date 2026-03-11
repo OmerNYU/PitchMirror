@@ -8,37 +8,32 @@ export interface StudioLayoutProps {
 
 export function StudioLayout({ wizard, sidebar }: StudioLayoutProps) {
   return (
-    <main className="min-h-screen px-4 py-8 md:px-8 lg:px-12 lg:py-10">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-        <header className="flex flex-col gap-3 border-b border-[color:var(--pm-border-subtle)]/60 pb-5">
+    <main className="min-h-screen px-4 py-6 md:px-8 lg:px-12 lg:py-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <header className="flex flex-col gap-2 border-b border-[color:var(--pm-border-subtle)]/60 pb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--pm-text-muted)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--pm-text-muted)]">
               PitchMirror Studio
             </p>
-            <h1 className="mt-2 text-2xl font-semibold text-[color:var(--pm-text-main)] md:text-3xl lg:text-[2.1rem] lg:leading-tight font-[family-name:var(--font-display)]">
+            <h1 className="mt-1 text-xl font-semibold text-[color:var(--pm-text-main)] font-[family-name:var(--font-display)] md:text-2xl lg:text-[1.75rem] lg:leading-tight">
               Guided coaching for your next pitch.
             </h1>
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-[color:var(--pm-text-muted)]">
-            <Card
-              tone="soft"
-              className="flex flex-wrap items-center gap-2 border-none bg-transparent px-0 py-0 shadow-none ring-0"
-            >
-              <span className="inline-flex items-center rounded-full border border-[color:var(--pm-border-subtle)]/80 bg-[color:var(--pm-surface-soft)] px-3 py-1">
-                ~30–60s analysis
-              </span>
-              <span className="inline-flex items-center rounded-full border border-[color:var(--pm-border-subtle)]/60 bg-[color:var(--pm-surface-soft)] px-3 py-1">
-                Deleted after processing
-              </span>
-              <span className="inline-flex items-center rounded-full border border-[color:var(--pm-border-subtle)]/60 bg-[color:var(--pm-surface-soft)] px-3 py-1">
-                Up to 5 min / 500MB
-              </span>
-            </Card>
+          <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-[color:var(--pm-text-muted)]">
+            <span className="inline-flex items-center rounded-full border border-[color:var(--pm-border-subtle)]/70 bg-[color:var(--pm-surface-soft)] px-2.5 py-0.5">
+              ~30–60s
+            </span>
+            <span className="inline-flex items-center rounded-full border border-[color:var(--pm-border-subtle)]/60 bg-[color:var(--pm-surface-soft)] px-2.5 py-0.5">
+              Deleted after
+            </span>
+            <span className="inline-flex items-center rounded-full border border-[color:var(--pm-border-subtle)]/60 bg-[color:var(--pm-surface-soft)] px-2.5 py-0.5">
+              5 min / 500MB
+            </span>
           </div>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-          <section aria-label="Setup and actions" className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+          <section aria-label="Setup and actions" className="space-y-5">
             {wizard}
           </section>
           <aside

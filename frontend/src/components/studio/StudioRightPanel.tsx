@@ -159,6 +159,7 @@ export function StudioRightPanel({
         <StudioReportView
           report={report}
           artifactsFromJob={status?.artifacts ?? null}
+          mode={mode}
         />
       </div>
     );

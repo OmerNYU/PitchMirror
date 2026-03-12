@@ -184,7 +184,7 @@ export default function StudioPage() {
         return await getReport(id);
       } catch (err) {
         const e = err as ApiErrorShape;
-        const isConflict = e.httpStatus === 409 || e.code === "REPORT_NOTREADY";
+        const isConflict = e.httpStatus === 409 || e.code === "REPORT_NOT_READY";
         if (!isConflict || attempt === retries) {
           throw err;
         }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Report, ReportSection } from "../../lib/api";
+import type { Mode, Report, ReportSection } from "../../lib/api";
 import { Card } from "../ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { cn } from "@/lib/utils";
@@ -164,6 +164,7 @@ function SectionTabContent({
 export interface StudioReportViewProps {
   report: Report;
   artifactsFromJob?: Record<string, unknown> | null;
+  mode?: Mode | null;
 }
 
 export function StudioReportView({
@@ -177,6 +178,11 @@ export function StudioReportView({
     ? report.practice_plan
     : [];
   const limitations = Array.isArray(report.limitations) ? report.limitations : [];
+  const limitationsText = limitations.join(" ").toLowerCase();
+  const mentionsNoAudio = limitationsText.includes("no audio");
+
+  const isPresenceMode = mode === "presence";
+  const defaultTab = isPresenceMode ? "presence" : "voice";
   const hasArtifacts =
     (report.artifacts && Object.keys(report.artifacts).length > 0) ||
     (artifactsFromJob && Object.keys(artifactsFromJob).length > 0);
@@ -280,7 +286,7 @@ export function StudioReportView({
 
       {/* D. Voice / Presence / Content tabs */}
       <Card className="overflow-hidden px-5 py-5">
-        <Tabs defaultValue="voice" className="w-full">
+        <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList
             variant="line"
             className="w-full justify-start rounded-none border-b border-[color:var(--pm-border-subtle)]/70 bg-transparent p-0"
@@ -315,7 +321,14 @@ export function StudioReportView({
           </TabsList>
           <div className="pt-4">
             <TabsContent value="voice">
-              <SectionTabContent section={report.voice} />
+              {isPresenceMode || mentionsNoAudio ? (
+                <p className="text-xs text-[color:var(--pm-text-muted)]">
+                  No audio was available for this analysis. This run focused on how you
+                  come across on camera.
+                </p>
+              ) : (
+                <SectionTabContent section={report.voice} />
+              )}
             </TabsContent>
             <TabsContent value="presence">
               <SectionTabContent section={report.presence} />

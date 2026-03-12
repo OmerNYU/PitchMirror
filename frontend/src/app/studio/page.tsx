@@ -96,6 +96,11 @@ export default function StudioPage() {
         if (cancelled) return;
         setStatus(s);
 
+        if (s.status === "FAILED") {
+          setPhase("idle");
+          return;
+        }
+
         if (s.status === "SUCCEEDED") {
           setPhase("reportLoading");
 
@@ -118,7 +123,17 @@ export default function StudioPage() {
           return;
         }
 
-        if (s.status === "FAILED") {
+        try {
+          const r = await tryGetReportOnce(jobId);
+          if (cancelled) return;
+          if (r) {
+            setReport(r);
+            setPhase("report");
+            return;
+          }
+        } catch (err) {
+          if (cancelled) return;
+          setApiError(err as ApiErrorShape);
           setPhase("idle");
           return;
         }
@@ -141,6 +156,24 @@ export default function StudioPage() {
     };
   }, [jobId, phase]);
 
+  async function tryGetReportOnce(id: string): Promise<Report | null> {
+    try {
+      return await getReport(id);
+    } catch (err) {
+      const e = err as ApiErrorShape;
+      const isNotReady =
+        e.httpStatus === 404 ||
+        e.httpStatus === 409 ||
+        e.code === "REPORT_NOT_READY";
+
+      if (isNotReady) {
+        return null;
+      }
+
+      throw err;
+    }
+  }
+
   async function getReportWithRetry(
     id: string,
     retries: number,
@@ -151,7 +184,7 @@ export default function StudioPage() {
         return await getReport(id);
       } catch (err) {
         const e = err as ApiErrorShape;
-        const isConflict = e.httpStatus === 409 || e.code === "REPORT_NOT_READY";
+        const isConflict = e.httpStatus === 409 || e.code === "REPORT_NOTREADY";
         if (!isConflict || attempt === retries) {
           throw err;
         }
@@ -262,6 +295,11 @@ export default function StudioPage() {
       setJobId(trimmed);
       setStatus(s);
 
+      if (s.status === "FAILED") {
+        setPhase("idle");
+        return;
+      }
+
       if (s.status === "SUCCEEDED") {
         setPhase("reportLoading");
         const r = await getReportWithRetry(trimmed, 3);
@@ -270,8 +308,10 @@ export default function StudioPage() {
         return;
       }
 
-      if (s.status === "FAILED") {
-        setPhase("idle");
+      const r = await tryGetReportOnce(trimmed);
+      if (r) {
+        setReport(r);
+        setPhase("report");
         return;
       }
 

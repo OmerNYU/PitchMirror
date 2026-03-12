@@ -96,6 +96,9 @@ export interface Report {
     [key: string]: unknown;
   };
   note?: string;
+  analysis_mode?: "standard" | "ai" | "hybrid";
+  ai_used?: boolean;
+  transcript_used?: boolean;
 }
 
 export interface UploadTranscriptInput {

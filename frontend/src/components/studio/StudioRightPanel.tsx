@@ -10,8 +10,7 @@ import type { ProgressPhase } from "../ProgressView";
 import { Card } from "../ui/Card";
 import { ProgressView } from "../ProgressView";
 import { ErrorView } from "../ErrorView";
-import { ReportSummary } from "../pitchmirror/ReportSummary";
-import { ReportView } from "../ReportView";
+import { StudioReportView } from "./StudioReportView";
 
 /** User-facing status derived from phase, report, and errors. */
 export type StudioStatus =
@@ -157,11 +156,10 @@ export function StudioRightPanel({
     return (
       <div className="space-y-4 lg:space-y-6">
         <StatusPill status="Complete" />
-        <ReportSummary
+        <StudioReportView
           report={report}
           artifactsFromJob={status?.artifacts ?? null}
         />
-        <ReportView report={report} artifactsFromJob={status?.artifacts ?? null} />
       </div>
     );
   }

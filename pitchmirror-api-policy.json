@@ -1,0 +1,63 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RawBucketAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::pitchmirror2-raw-omer-2026/*"
+      ]
+    },
+    {
+      "Sid": "DerivedBucketAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::pitchmirror2-derived-omer-2026/*"
+      ]
+    },
+    {
+      "Sid": "BucketMetadataAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation"
+      ],
+      "Resource": [
+        "arn:aws:s3:::pitchmirror2-raw-omer-2026",
+        "arn:aws:s3:::pitchmirror2-derived-omer-2026"
+      ]
+    },
+    {
+      "Sid": "JobsTableAccess",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": "arn:aws:dynamodb:us-east-1:*:table/pitchmirror2-jobs"
+    },
+    {
+      "Sid": "StartPipeline",
+      "Effect": "Allow",
+      "Action": [
+        "states:StartExecution",
+        "states:DescribeExecution"
+      ],
+      "Resource": [
+        "arn:aws:states:us-east-1:*:stateMachine:pitchmirror2-stub-pipeline",
+        "arn:aws:states:us-east-1:*:execution:pitchmirror2-stub-pipeline:*"
+      ]
+    }
+  ]
+}

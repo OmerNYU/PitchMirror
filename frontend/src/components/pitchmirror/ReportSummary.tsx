@@ -1,5 +1,5 @@
 import type { Report } from "../../lib/api";
-import { Card } from "../ui/Card";
+import { Card } from "../ui/card";
 
 interface ReportSummaryProps {
   report: Report | null;

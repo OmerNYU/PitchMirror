@@ -7,7 +7,7 @@ import type {
   ApiErrorShape,
 } from "../../lib/api";
 import type { ProgressPhase } from "../ProgressView";
-import { Card } from "../ui/Card";
+import { Card } from "../ui/card";
 import { ProgressView } from "../ProgressView";
 import { ErrorView } from "../ErrorView";
 import { StudioReportView } from "./StudioReportView";

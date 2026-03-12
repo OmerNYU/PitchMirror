@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Mode } from "../../lib/api";
-import { Card } from "../ui/Card";
+import { Card } from "../ui/card";
 import { UploadCloud, Mic, Video } from "lucide-react";
 
 const ACCEPTED_VIDEO_TYPES = [

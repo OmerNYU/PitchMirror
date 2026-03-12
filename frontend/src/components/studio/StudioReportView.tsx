@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Report, ReportSection } from "../../lib/api";
-import { Card } from "../ui/Card";
+import { Card } from "../ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { cn } from "@/lib/utils";
 

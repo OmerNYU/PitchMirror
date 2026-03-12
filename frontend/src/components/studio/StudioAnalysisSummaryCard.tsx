@@ -1,8 +1,8 @@
 "use client";
 
 import type { Mode } from "../../lib/api";
-import { Card } from "../ui/Card";
-import { Button } from "../ui/Button";
+import { Card } from "../ui/card";
+import { Button } from "../ui/button";
 
 const MODE_LABELS: Record<Mode, string> = {
   voice: "Audio coaching",

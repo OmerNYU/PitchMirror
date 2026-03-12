@@ -1,65 +1,91 @@
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-import { Slot } from "radix-ui"
+"use client";
 
-import { cn } from "@/lib/utils"
+import { cloneElement, isValidElement } from "react";
+import { motion } from "framer-motion";
+import type React from "react";
 
-const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-4xl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
-        outline:
-          "border-border bg-input/30 hover:bg-input/50 hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
-        ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
-        destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default:
-          "h-9 gap-1.5 px-3 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5",
-        xs: "h-6 gap-1 px-2.5 text-xs has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1 px-3 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        lg: "h-10 gap-1.5 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
-        icon: "size-9",
-        "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm": "size-8",
-        "icon-lg": "size-10",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
+type Variant = "primary" | "secondary" | "ghost";
+type Size = "md" | "sm";
 
-function Button({
-  className,
-  variant = "default",
-  size = "default",
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
-  const Comp = asChild ? Slot.Root : "button"
-
-  return (
-    <Comp
-      data-slot="button"
-      data-variant={variant}
-      data-size={size}
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
-  )
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: Variant;
+  size?: Size;
+  asChild?: boolean;
 }
 
-export { Button, buttonVariants }
+const baseClasses =
+  "inline-flex items-center justify-center gap-2 rounded-full border text-sm font-medium tracking-tight transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[color:var(--pm-accent)] focus-visible:ring-offset-[color:var(--pm-bg)] disabled:cursor-not-allowed disabled:opacity-50";
+
+const variantClasses: Record<Variant, string> = {
+  primary:
+    "bg-[color:var(--pm-accent)] text-slate-950 border-transparent hover:bg-[color:var(--pm-accent)]/90",
+  secondary:
+    "bg-[color:var(--pm-surface-soft)] text-[color:var(--pm-text-main)] border-[color:var(--pm-border-subtle)] hover:bg-[color:var(--pm-surface)]",
+  ghost:
+    "bg-transparent text-[color:var(--pm-text-muted)] border-transparent hover:bg-[color:var(--pm-surface-soft)]/70",
+};
+
+const sizeClasses: Record<Size, string> = {
+  md: "min-h-[44px] px-5 py-2.5",
+  sm: "min-h-[36px] px-3 py-1.5 text-xs",
+};
+
+export function Button({
+  variant = "primary",
+  size = "md",
+  className,
+  disabled,
+  children,
+  asChild = false,
+  ...props
+}: ButtonProps) {
+  const classes = [
+    baseClasses,
+    variantClasses[variant],
+    sizeClasses[size],
+    className ?? "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if (asChild && isValidElement(children)) {
+    return cloneElement(children as React.ReactElement<{ className?: string }>, {
+      className: [classes, (children.props as { className?: string }).className]
+        .filter(Boolean)
+        .join(" "),
+    });
+  }
+
+  const isInteractive = !disabled;
+
+  return (
+    <motion.button
+      type={props.type ?? "button"}
+      className={classes}
+      disabled={disabled}
+      whileHover={
+        isInteractive
+          ? {
+              y: -1,
+              boxShadow:
+                "0 18px 40px rgba(15,23,42,0.55), 0 0 0 1px rgba(148,163,184,0.15)",
+              transition: { duration: 0.18, ease: "easeOut" },
+            }
+          : undefined
+      }
+      whileTap={
+        isInteractive
+          ? {
+              scale: 0.97,
+              y: 0,
+              transition: { duration: 0.12, ease: "easeOut" },
+            }
+          : undefined
+      }
+      {...(props as React.ComponentProps<typeof motion.button>)}
+    >
+      {children}
+    </motion.button>
+  );
+}

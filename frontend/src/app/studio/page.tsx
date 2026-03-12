@@ -24,7 +24,7 @@ import { StudioUploadCard } from "../../components/studio/StudioUploadCard";
 import { StudioTranscriptCard } from "../../components/studio/StudioTranscriptCard";
 import { StudioAnalysisSummaryCard } from "../../components/studio/StudioAnalysisSummaryCard";
 import { StudioRightPanel } from "../../components/studio/StudioRightPanel";
-import { Button } from "../../components/ui/Button";
+import { Button } from "../../components/ui/button";
 
 type Phase = ProgressPhase;
 

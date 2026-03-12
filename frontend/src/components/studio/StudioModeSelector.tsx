@@ -1,7 +1,7 @@
 "use client";
 
 import type { Mode } from "../../lib/api";
-import { Card } from "../ui/Card";
+import { Card } from "../ui/card";
 import { Mic, Video, Sparkles } from "lucide-react";
 
 const MODES: {

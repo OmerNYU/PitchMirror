@@ -1,5 +1,5 @@
 import type React from "react";
-import { Card } from "./Card";
+import { Card } from "./card";
 
 export interface StudioLayoutProps {
   wizard: React.ReactNode;

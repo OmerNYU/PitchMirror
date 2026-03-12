@@ -1,6 +1,6 @@
-# PitchMirror 2.0 — System Architecture
+# PitchMirror — System Architecture
 
-**Goal:** Ship a reliable, demo-ready PitchMirror 2.0 that provides high-quality presentation coaching using **Nova** (as the core reasoning engine) while keeping **cost, latency, and complexity** under control.
+**Goal:** Ship a reliable, demo-ready PitchMirror that provides high-quality presentation coaching using **Nova** (as the core reasoning engine) while keeping **cost, latency, and complexity** under control.
 
 This document is the **single source of truth** for architecture, constraints, objectives, and design decisions. Cursor should reference this continuously during implementation.
 
@@ -8,7 +8,7 @@ This document is the **single source of truth** for architecture, constraints, o
 
 ## 0) Product Definition
 
-PitchMirror 2.0 is an AI coach for presentation practice that produces:
+PitchMirror is an AI coach for presentation practice that produces:
 - **Voice coaching** (pacing, pauses, filler words, clarity, structure)
 - **Presence coaching** (posture, gaze, expressiveness, gestures)
 - **Full coaching** (combined prioritized fixes + drills + practice plan)

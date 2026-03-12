@@ -1,4 +1,4 @@
-## PitchMirror 2.0 Smoke Test
+## PitchMirror Smoke Test
 
 This checklist validates the end-to-end demo flow for judges using the deployed backend (and optionally the UI).
 

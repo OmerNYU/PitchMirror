@@ -1,6 +1,6 @@
 ## Stub pipeline (Step Functions)
 
-This folder contains infrastructure files for the PitchMirror 2.0 **stub pipeline** implemented as an AWS Step Functions **Standard** state machine.
+This folder contains infrastructure files for the PitchMirror **stub pipeline** implemented as an AWS Step Functions **Standard** state machine.
 
 ### State machine
 

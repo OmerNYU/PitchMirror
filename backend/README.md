@@ -1,4 +1,4 @@
-# PitchMirror 2.0 Backend
+# PitchMirror Backend
 
 API for job creation, presigned S3 upload, and job status. Built with Fastify, TypeScript, and AWS SDK v3.
 

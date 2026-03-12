@@ -170,6 +170,7 @@ export interface StudioReportViewProps {
 export function StudioReportView({
   report,
   artifactsFromJob,
+  mode,
 }: StudioReportViewProps) {
   const [technicalOpen, setTechnicalOpen] = useState(false);
 

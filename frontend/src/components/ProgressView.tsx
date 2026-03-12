@@ -20,7 +20,7 @@ interface ProgressViewProps {
 const STEPS = [
   { key: "uploading", label: "Uploading" },
   { key: "processing", label: "Processing" },
-  { key: "ready", label: "Report ready" },
+  { key: "complete", label: "Complete" },
 ] as const;
 
 function stepIndex(phase: ProgressPhase, status?: JobStatusResponse | null): number {

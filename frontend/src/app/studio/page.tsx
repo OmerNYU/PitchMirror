@@ -205,6 +205,13 @@ export default function StudioPage() {
         updatedAt: new Date().toISOString(),
       });
 
+      setPhase("uploading");
+      await uploadToPresignedUrl({
+        url: created.upload.url,
+        file: wizard.file,
+        contentType: created.upload.requiredHeaders["content-type"],
+      });
+
       const transcriptText = (wizard.transcriptText ?? "").trim();
       if (transcriptText.length > 0) {
         const transcriptPayload: UploadTranscriptInput = {
@@ -212,13 +219,6 @@ export default function StudioPage() {
         };
         await uploadTranscript(created.jobId, transcriptPayload);
       }
-
-      setPhase("uploading");
-      await uploadToPresignedUrl({
-        url: created.upload.url,
-        file: wizard.file,
-        contentType: created.upload.requiredHeaders["content-type"],
-      });
 
       setPhase("finalizing");
       const finalized = await finalizeJob({

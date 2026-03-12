@@ -17,7 +17,10 @@ const envSchema = z.object({
 export type Config = z.infer<typeof envSchema>;
 
 function loadConfig(): Config {
-  const parsed = envSchema.safeParse(process.env);
+  const parsed = envSchema.safeParse({
+    ...process.env,
+    PORT: process.env.PORT ?? "8080",
+  });
   if (!parsed.success) {
     const msg = parsed.error.flatten().fieldErrors;
     throw new Error(`Invalid env: ${JSON.stringify(msg)}`);

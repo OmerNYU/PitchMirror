@@ -169,8 +169,8 @@ export function StudioRightPanel({
       status?.errorMessage ?? status?.error?.message ?? null;
     return (
       <div className="space-y-4">
-        <Card className="px-4 py-4 md:px-5 md:py-5">
-          <StatusPill status="Failed" />
+<Card className="px-5 py-5">
+        <StatusPill status="Failed" />
           <h2 className="mt-2 font-[family-name:var(--font-display)] text-lg font-semibold text-[color:var(--pm-text-main)]">
             Analysis failed
           </h2>
@@ -194,7 +194,7 @@ export function StudioRightPanel({
   if (isProcessing) {
     return (
       <div className="space-y-4">
-        <Card className="px-4 py-4 md:px-5 md:py-5">
+        <Card className="px-5 py-5">
           <StatusPill
             status={
               phase === "polling" || phase === "reportLoading"
@@ -226,13 +226,13 @@ export function StudioRightPanel({
 
   return (
     <div className="space-y-4 lg:space-y-6">
-      <Card className="px-4 py-4 md:px-5 md:py-5">
+      <Card className="px-5 py-5">
         <StatusPill status="Ready" />
         <div className="mt-2">
           <WhatYouGetContent mode={mode} />
         </div>
       </Card>
-      <Card tone="soft" className="px-4 py-4 md:px-5 md:py-4">
+      <Card tone="soft" className="px-5 py-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
           How we handle your video
         </p>

@@ -15,8 +15,8 @@ export function StudioTranscriptCard({
   disabled = false,
 }: StudioTranscriptCardProps) {
   return (
-    <Card className="px-5 py-5 md:px-6 md:py-5">
-      <div className="space-y-3">
+    <Card className="px-5 py-5">
+      <div className="space-y-4">
         <div>
           <h2 className="font-[family-name:var(--font-display)] text-base font-semibold text-[color:var(--pm-text-main)]">
             Optional transcript

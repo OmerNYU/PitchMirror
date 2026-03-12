@@ -9,8 +9,8 @@ export interface StudioLayoutProps {
 export function StudioLayout({ wizard, sidebar }: StudioLayoutProps) {
   return (
     <main className="min-h-screen px-4 py-6 md:px-8 lg:px-12 lg:py-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <header className="flex flex-col gap-2 border-b border-[color:var(--pm-border-subtle)]/60 pb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
+        <header className="flex flex-col gap-2 border-b border-[color:var(--pm-border-subtle)]/60 pb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--pm-text-muted)]">
               PitchMirror Studio
@@ -24,7 +24,7 @@ export function StudioLayout({ wizard, sidebar }: StudioLayoutProps) {
               ~30–60s
             </span>
             <span className="inline-flex items-center rounded-full border border-[color:var(--pm-border-subtle)]/60 bg-[color:var(--pm-surface-soft)] px-2.5 py-0.5">
-              Deleted after
+              Deleted after processing
             </span>
             <span className="inline-flex items-center rounded-full border border-[color:var(--pm-border-subtle)]/60 bg-[color:var(--pm-surface-soft)] px-2.5 py-0.5">
               5 min / 500MB
@@ -33,7 +33,7 @@ export function StudioLayout({ wizard, sidebar }: StudioLayoutProps) {
         </header>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-          <section aria-label="Setup and actions" className="space-y-5">
+          <section aria-label="Setup and actions" className="space-y-6">
             {wizard}
           </section>
           <aside

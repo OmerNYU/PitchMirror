@@ -201,7 +201,7 @@ export function StudioReportView({
   }
 
   return (
-    <div className="space-y-5 lg:space-y-6">
+    <div className="space-y-4 lg:space-y-5">
       {/* A. Metadata bar */}
       {meta.length > 0 && (
         <div
@@ -217,7 +217,7 @@ export function StudioReportView({
       )}
 
       {/* B. Overall summary card */}
-      <Card className="px-4 py-5 md:px-6 md:py-6">
+      <Card className="px-5 py-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
           Overall
         </p>
@@ -241,8 +241,8 @@ export function StudioReportView({
 
       {/* C. Top fixes */}
       {topFixes.length > 0 && (
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)] mb-3">
+        <div className="space-y-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
             Top opportunities
           </p>
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -279,7 +279,7 @@ export function StudioReportView({
       )}
 
       {/* D. Voice / Presence / Content tabs */}
-      <Card className="overflow-hidden px-4 py-4 md:px-5 md:py-5">
+      <Card className="overflow-hidden px-5 py-5">
         <Tabs defaultValue="voice" className="w-full">
           <TabsList
             variant="line"
@@ -328,7 +328,7 @@ export function StudioReportView({
       </Card>
 
       {/* E. Practice plan */}
-      <Card tone="soft" className="px-4 py-4 md:px-5 md:py-5">
+      <Card tone="soft" className="px-5 py-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
           Practice plan
         </p>
@@ -363,7 +363,7 @@ export function StudioReportView({
       </Card>
 
       {/* F. Limitations and note */}
-      <Card tone="soft" className="px-4 py-4 md:px-5 md:py-4">
+      <Card tone="soft" className="px-5 py-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
           Limitations &amp; note
         </p>

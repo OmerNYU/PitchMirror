@@ -102,7 +102,7 @@ export function StudioUploadCard({
   const canEdit = !disabled;
 
   return (
-    <Card className="px-4 py-4 md:px-5 md:py-4">
+    <Card className="px-5 py-5">
       <div className="flex items-start gap-3">
         <div className="mt-0.5 hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[color:var(--pm-border-subtle)] bg-[color:var(--pm-surface-soft)] text-[color:var(--pm-accent)] sm:flex">
           {copy.icon}

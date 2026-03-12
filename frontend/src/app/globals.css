@@ -8,7 +8,7 @@
   --pm-surface-soft: #f6eee3;
   --pm-border-subtle: rgba(180, 164, 140, 0.6);
   --pm-text-main: #111827;
-  --pm-text-muted: #6b6052;
+  --pm-text-muted: #5a5046;
   --pm-accent: #d89a3f;
   --pm-accent-soft: rgba(216, 154, 63, 0.18);
 }
@@ -71,6 +71,22 @@ body {
 
 .badge {
   @apply inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-200;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-entrance {
+    animation: heroEntrance 0.32s ease-out forwards;
+  }
+  @keyframes heroEntrance {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
 @layer base {

@@ -61,7 +61,7 @@ export function ProgressView({
   }
 
   return (
-    <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-4">
+    <div className="mt-4 rounded-xl border border-[color:var(--pm-border-subtle)] bg-[color:var(--pm-surface-soft)]/80 px-4 py-4">
       <div className="flex items-center justify-between gap-4">
         {STEPS.map((step, idx) => {
           const stepNum = idx + 1;
@@ -75,17 +75,19 @@ export function ProgressView({
               <div
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
                   isComplete
-                    ? "bg-emerald-500/20 text-emerald-400"
+                    ? "bg-emerald-500/20 text-emerald-700"
                     : isActive
-                      ? "bg-brand text-white"
-                      : "bg-slate-800 text-slate-500"
+                      ? "bg-[color:var(--pm-accent)] text-[color:var(--pm-text-main)]"
+                      : "bg-[color:var(--pm-surface)] text-[color:var(--pm-text-muted)] border border-[color:var(--pm-border-subtle)]/70"
                 }`}
               >
                 {isComplete ? "✓" : stepNum}
               </div>
               <span
                 className={`text-sm ${
-                  isActive ? "font-medium text-slate-100" : "text-slate-400"
+                  isActive
+                    ? "font-medium text-[color:var(--pm-text-main)]"
+                    : "text-[color:var(--pm-text-muted)]"
                 }`}
               >
                 {step.label}
@@ -93,7 +95,9 @@ export function ProgressView({
               {idx < STEPS.length - 1 && (
                 <div
                   className={`ml-1 h-0.5 flex-1 rounded ${
-                    isComplete ? "bg-emerald-500/40" : "bg-slate-700"
+                    isComplete
+                      ? "bg-emerald-500/40"
+                      : "bg-[color:var(--pm-border-subtle)]/60"
                   }`}
                   aria-hidden
                 />
@@ -103,8 +107,8 @@ export function ProgressView({
         })}
       </div>
       {isPolling && currentStep === 1 && (
-        <p className="mt-3 flex items-center gap-2 text-xs text-slate-400">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+        <p className="mt-3 flex items-center gap-2 text-xs text-[color:var(--pm-text-muted)]">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-[color:var(--pm-accent)]" />
           Analyzing your video…
         </p>
       )}

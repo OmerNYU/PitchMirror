@@ -35,7 +35,7 @@ export function StudioAnalysisSummaryCard({
     !!fileName && consent && !disabled && !isAnalyzing;
 
   return (
-    <Card className="px-5 py-5 md:px-6 md:py-6">
+    <Card className="px-5 py-5">
       <div className="space-y-5">
         <div>
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[color:var(--pm-text-main)]">

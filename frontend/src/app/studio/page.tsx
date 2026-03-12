@@ -92,9 +92,29 @@ export default function StudioPage() {
     const pollOnce = async () => {
       if (!jobId) return;
       try {
+        // Try getReport first: any successful response is terminal success (mode-agnostic).
+        try {
+          const r = await tryGetReportOnce(jobId);
+          if (cancelled) return;
+          if (r) {
+            console.log("[studio] poll result", { reportFetched: true });
+            console.log("[studio] report fetch success");
+            setReport(r);
+            setPhase("report");
+            console.log("[studio] setPhase(report)");
+            return;
+          }
+        } catch (err) {
+          if (cancelled) return;
+          setApiError(err as ApiErrorShape);
+          setPhase("idle");
+          return;
+        }
+
         const s = await getJobStatus(jobId);
         if (cancelled) return;
         setStatus(s);
+        console.log("[studio] poll result", { status: s.status, reportFetched: false });
 
         if (s.status === "FAILED") {
           setPhase("idle");
@@ -102,13 +122,14 @@ export default function StudioPage() {
         }
 
         if (s.status === "SUCCEEDED") {
-          setPhase("reportLoading");
-
+          // Do not setPhase("reportLoading") here — it triggers effect cleanup and cancels this callback.
           try {
             const r = await getReportWithRetry(jobId, 3);
             if (cancelled) return;
+            console.log("[studio] report fetch success");
             setReport(r);
             setPhase("report");
+            console.log("[studio] setPhase(report)");
           } catch (err) {
             if (cancelled) return;
             setApiError(
@@ -120,21 +141,6 @@ export default function StudioPage() {
             );
             setPhase("idle");
           }
-          return;
-        }
-
-        try {
-          const r = await tryGetReportOnce(jobId);
-          if (cancelled) return;
-          if (r) {
-            setReport(r);
-            setPhase("report");
-            return;
-          }
-        } catch (err) {
-          if (cancelled) return;
-          setApiError(err as ApiErrorShape);
-          setPhase("idle");
           return;
         }
 
@@ -301,17 +307,20 @@ export default function StudioPage() {
       }
 
       if (s.status === "SUCCEEDED") {
-        setPhase("reportLoading");
         const r = await getReportWithRetry(trimmed, 3);
+        console.log("[studio] report fetch success");
         setReport(r);
         setPhase("report");
+        console.log("[studio] setPhase(report)");
         return;
       }
 
       const r = await tryGetReportOnce(trimmed);
       if (r) {
+        console.log("[studio] report fetch success");
         setReport(r);
         setPhase("report");
+        console.log("[studio] setPhase(report)");
         return;
       }
 

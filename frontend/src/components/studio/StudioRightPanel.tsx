@@ -1,5 +1,7 @@
 "use client";
 
+import { Component } from "react";
+import { useState, type ReactNode } from "react";
 import type {
   Mode,
   Report,
@@ -56,6 +58,88 @@ function StatusPill({ status }: { status: StudioStatus }) {
       Status: {status}
     </p>
   );
+}
+
+/** Fallback when StudioReportView throws (e.g. mode-specific or malformed report). */
+function ReportFallbackCard({ report }: { report: Report }) {
+  const [rawOpen, setRawOpen] = useState(false);
+  const summary =
+    report?.overall?.summary ?? "Summary not available.";
+  const topFixes = Array.isArray(report?.top_fixes) ? report.top_fixes : [];
+
+  return (
+    <Card className="px-5 py-5 space-y-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)]">
+        Report (simplified view)
+      </p>
+      <p className="font-[family-name:var(--font-display)] text-lg font-semibold leading-snug text-[color:var(--pm-text-main)]">
+        {summary}
+      </p>
+      {topFixes.length > 0 && (
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--pm-text-muted)]">
+            Top opportunities
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-[color:var(--pm-text-main)]">
+            {topFixes.slice(0, 5).map((fix, i) => (
+              <li key={i}>
+                {typeof fix === "object" && fix !== null && "issue" in fix
+                  ? String((fix as { issue?: string }).issue)
+                  : String(fix)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <div>
+        <button
+          type="button"
+          className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--pm-text-muted)] hover:text-[color:var(--pm-text-main)]"
+          onClick={() => setRawOpen((o) => !o)}
+          aria-expanded={rawOpen}
+        >
+          {rawOpen ? "Hide raw report" : "Show raw report"}
+        </button>
+        {rawOpen && (
+          <pre className="mt-2 overflow-x-auto rounded-xl bg-[color:var(--pm-surface)]/80 p-3 font-mono text-[11px] text-[color:var(--pm-text-muted)]">
+            {JSON.stringify(report, null, 2)}
+          </pre>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+interface ReportErrorBoundaryProps {
+  report: Report;
+  mode: Mode;
+  artifactsFromJob: Record<string, unknown> | null;
+  children: ReactNode;
+}
+
+interface ReportErrorBoundaryState {
+  hasError: boolean;
+}
+
+class ReportErrorBoundary extends Component<
+  ReportErrorBoundaryProps,
+  ReportErrorBoundaryState
+> {
+  constructor(props: ReportErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): ReportErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <ReportFallbackCard report={this.props.report} />;
+    }
+    return this.props.children;
+  }
 }
 
 interface StudioRightPanelProps {
@@ -153,14 +237,21 @@ export function StudioRightPanel({
     phase === "reportLoading";
 
   if (studioStatus === "Complete" && report) {
+    console.log("[studio] report render entry", { mode });
     return (
       <div className="space-y-4 lg:space-y-6">
         <StatusPill status="Complete" />
-        <StudioReportView
+        <ReportErrorBoundary
           report={report}
-          artifactsFromJob={status?.artifacts ?? null}
           mode={mode}
-        />
+          artifactsFromJob={status?.artifacts ?? null}
+        >
+          <StudioReportView
+            report={report}
+            artifactsFromJob={status?.artifacts ?? null}
+            mode={mode}
+          />
+        </ReportErrorBoundary>
       </div>
     );
   }

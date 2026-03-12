@@ -172,6 +172,7 @@ export function StudioReportView({
   artifactsFromJob,
   mode,
 }: StudioReportViewProps) {
+  console.log("[studio] report render entry", { mode });
   const [technicalOpen, setTechnicalOpen] = useState(false);
 
   const topFixes = Array.isArray(report.top_fixes) ? report.top_fixes : [];
@@ -190,11 +191,11 @@ export function StudioReportView({
 
   const meta: { label: string; value: string }[] = [];
   if (report.analysis_mode != null) {
+    const analysisModeStr = String(report.analysis_mode ?? "");
     meta.push({
       label: "Analysis mode",
       value:
-        report.analysis_mode.charAt(0).toUpperCase() +
-        report.analysis_mode.slice(1),
+        analysisModeStr.charAt(0).toUpperCase() + analysisModeStr.slice(1),
     });
   }
   if (report.ai_used != null) {

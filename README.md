@@ -2,13 +2,6 @@
 
 PitchMirror is a multimodal pitch‑coaching web app powered by Amazon Nova. You upload a short practice pitch video and receive a focused coaching report covering **voice**, **on‑camera presence**, and **content structure**, in under a minute.
 
-The project is currently in **submission‑prep** mode:
-
-- **Backend**: feature‑frozen except for bug fixes.
-- **Frontend**: landing and studio experience implemented and polished.
-- **Pipeline**: end‑to‑end flow verified with real AWS infrastructure and Nova.
-
----
 
 ### What PitchMirror does
 
@@ -20,12 +13,6 @@ The project is currently in **submission‑prep** mode:
 - **Optional transcript**: you can attach your own transcript text (and optional WebVTT subtitles) for more precise content feedback.
 - **Get a structured coaching report**: top fixes, drills, a short practice plan, and sections for voice, presence, and content.
 
-Important practical note:
-
-- The current upload path is **video‑only**. Even in Audio coaching mode, the system uses the **video’s audio track**.
-- The transcript is optional and is uploaded via the dedicated transcript endpoint; analysis still works without it.
-
----
 
 ### Key features
 

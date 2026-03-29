@@ -155,5 +155,3 @@ For a detailed smoke test – including `curl` commands and AWS Console verifica
 - **Demo & submission prep** (3‑minute demo flow and story): `docs/demo-and-submission.md`.
 - **Status & dev notes** (freeze status and contributor notes): `docs/status.md`, `docs/dev-notes.md`.
 
-All documentation is written to reflect the current, frozen backend and polished frontend as of the submission‑prep phase.
-
